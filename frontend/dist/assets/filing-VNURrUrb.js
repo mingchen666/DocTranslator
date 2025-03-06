@@ -1,0 +1,1 @@
+import{_ as t,y as s,b as n,d as a}from"./index-C9V8vMey.js";const o={},i={class:"filing"};function c(r,e){return s(),n("div",i,e[0]||(e[0]=[a("a",{href:"https://beian.miit.gov.cn",target:"https://beian.miit.gov.cn"},"鲁ICP备17007495号-1 | 鲁B2-20240422",-1)]))}const d=t(o,[["render",c],["__scopeId","data-v-2d4eba63"]]);export{d as F};

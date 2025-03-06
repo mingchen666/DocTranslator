@@ -1,0 +1,43 @@
+{
+    "name": "ez-work",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build:dev": "vite build --mode development",
+        "build:com": "vite build --mode community",
+        "build:prod": "vite build --mode production",
+        "docker": "vite build --env-file ./.env.docker",
+        "lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue src/",
+        "lint": "eslint --ext .js --ext .jsx --ext .vue src/",
+        "format": "prettier --write src/",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@element-plus/icons-vue": "^2.3.1",
+        "axios": "^1.6.7",
+        "element-plus": "^2.6.1",
+        "mitt": "^3.0.1",
+        "object-hash": "^3.0.0",
+        "pinia": "^3.0.1",
+        "pinia-plugin-persistedstate": "^4.2.0",
+        "qs": "^6.12.0",
+        "vue": "^3.4.21",
+        "vue-router": "^4.4.5"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.14.0",
+        "@vitejs/plugin-vue": "^5.0.4",
+        "@vue/eslint-config-prettier": "^10.1.0",
+        "eslint": "^9.14.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-vue": "^9.30.0",
+        "fast-glob": "^3.3.2",
+        "prettier": "^3.3.3",
+        "sass": "^1.78.0",
+        "sass-loader": "^16.0.1",
+        "vite": "^5.1.6",
+        "vite-plugin-svg-icons": "^2.0.1"
+    }
+}

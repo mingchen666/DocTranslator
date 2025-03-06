@@ -1,0 +1,14 @@
+html{
+  background-color: #F6F8FA;
+  font-family: "PingFang-SC-Bold";
+}
+
+body{
+  margin: 0;
+}
+body *{
+  outline: none;
+}
+button{
+  outline: none!important;
+}

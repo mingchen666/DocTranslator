@@ -1,0 +1,1 @@
+window.ipConfig = "/api"

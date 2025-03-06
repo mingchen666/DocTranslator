@@ -1,0 +1,1 @@
+import{Z as t}from"./vue-DSQ7aDT9.js";const r={total:0,currentPage:1,pageSizes:[10,20,50],pageSize:10,layout:"total, sizes, prev, pager, next, jumper"};function u(n={}){const e=t({...r,...n});return{paginationData:e,handleCurrentChange:a=>{e.currentPage=a},handleSizeChange:a=>{e.pageSize=a}}}export{u};
