@@ -4,7 +4,6 @@ import pymysql
 import os
 from dotenv import load_dotenv, find_dotenv
 from threading import Lock
-
 _ = load_dotenv(find_dotenv()) # read local .env file
 
 
@@ -27,10 +26,7 @@ def get_conn61():
         print(f"Error connecting to database: {e}")
         raise
 
-import os
-import sqlite3
-import pymysql
-from urllib.parse import urlparse
+
 
 def get_conn():
     try:

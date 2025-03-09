@@ -83,7 +83,7 @@ class ProductionConfig(Config):
     # MySQL/PostgreSQL配置（生产环境）
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'PROD_DATABASE_URL',
-        'mysql://user:password@localhost/prod_db?charset=utf8mb4'
+        'mysql+pymysql://user:password@localhost/prod_db?charset=utf8mb4'
     )
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,

@@ -410,7 +410,7 @@ class OpenAICheckResource(Resource):
     @jwt_required()
     def post(self):
         """OpenAI接口检测[^6]"""
-        data = request.json
+        data = request.form
         required = ['api_url', 'api_key', 'model']
         if not all(k in data for k in required):
             return APIResponse.error('缺少必要参数', 400)

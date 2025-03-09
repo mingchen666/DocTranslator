@@ -733,7 +733,7 @@ function check() {
   checkOpenAI(form.value)
     .then((data) => {
       checking.value = false
-      if (data.code == 0) {
+      if (data.code == 200) {
         check_text.value = 'success'
       } else {
         check_text.value = 'fail'
