@@ -121,20 +121,26 @@ DocTranslator/
 docker network create my-network
 ```
 
-### 3. 后端部署
+### 3. 克隆项目
 
-#### 3.1 配置环境变量
+```bash
+git clone https://github.com/mingchen666/DocTranslator.git
+```
+
+### 4. 后端部署
+
+#### 4.1 配置环境变量
 
 确保 `DocTranslator/backend/.env` 文件已正确填写环境变量。
 
-#### 3.2 构建后端镜像
+#### 4.2 构建后端镜像
 
 ```bash
 cd DocTranslator/backend
 docker build -t ezwork-api .
 ```
 
-#### 3.3 运行后端容器
+#### 4.3 运行后端容器
 
 ```bash
 cd ..
@@ -146,7 +152,7 @@ docker run -d \
   ezwork-api
 ```
 
-### 4. 启动 Nginx
+### 5. 启动 Nginx
 
 ```bash
 docker run -d \
@@ -160,7 +166,7 @@ docker run -d \
   nginx:stable-alpine
 ```
 
-### 5. 访问服务
+### 6. 访问服务
 
 - **前端**：http://localhost:1475  
 - **管理端**：http://localhost:8081  
@@ -192,8 +198,10 @@ docker run -d \
 ## 💖 赞赏支持
 
 如果 DocTranslator 对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
+
 🎉 **赞赏码**：  
-![赞赏码](docs/e652698b250efb6e5151b084bd08814.jpg)  
+![赞赏码](https://github.com/user-attachments/assets/cc76a10e-7853-4cc1-8714-200f07fb8d28)
+
 
 ---
 
