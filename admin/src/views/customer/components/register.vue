@@ -18,7 +18,7 @@
   </el-form>
 </template>
 <script setup lang="ts">
-import { ref, reactive, defineEmits } from "vue"
+import { ref, reactive } from "vue"
 import { registerCustomer } from "@/api/customer/index"
 import { FormInstance, ElMessage } from "element-plus"
 import { CreateOrUpdateCustomerRequestData } from "@/api/customer/types/customer"

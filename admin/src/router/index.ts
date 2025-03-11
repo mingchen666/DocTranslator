@@ -44,6 +44,7 @@ export const constantRoutes: RouteRecordRaw[] = [
       hidden: true
     }
   },
+
   {
     path: "/",
     component: Layouts,
@@ -96,8 +97,8 @@ export const constantRoutes: RouteRecordRaw[] = [
   {
     path: "/setting",
     component: Layouts,
-    meta:{
-      title:"系统设置",
+    meta: {
+      title: "系统设置",
       elIcon: "setting",
       affix: true
     },
@@ -131,6 +132,16 @@ export const constantRoutes: RouteRecordRaw[] = [
           elIcon: "tools",
           affix: true
         }
+      },
+      {
+        path: "password",
+        component: () => import("@/views/password/index.vue"),
+        name: "ChangePassword",
+        meta: {
+          title: "修改密码",
+          elIcon: "lock",
+          affix: true
+        }
       }
     ]
   }
@@ -141,8 +152,7 @@ export const constantRoutes: RouteRecordRaw[] = [
  * 用来放置有权限 (Roles 属性) 的路由
  * 必须带有 Name 属性
  */
-export const dynamicRoutes: RouteRecordRaw[] = [
-]
+export const dynamicRoutes: RouteRecordRaw[] = []
 
 const router = createRouter({
   history,

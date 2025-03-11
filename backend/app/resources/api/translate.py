@@ -1,4 +1,5 @@
 # resources/to_translate.py
+import json
 from pathlib import Path
 from flask import request, send_file, current_app, make_response
 from flask_restful import Resource
@@ -8,7 +9,7 @@ from io import BytesIO
 import zipfile
 import os
 
-from app import db
+from app import db, Setting
 from app.models import Customer
 from app.models.translate import Translate
 from app.resources.task.translate_service import TranslateEngine
@@ -297,12 +298,61 @@ class TranslateListResource(Resource):
         else:
             return "其他"
 
-
+# 获取翻译配置
 class TranslateSettingResource(Resource):
     @jwt_required()
     def get(self):
-        """获取翻译配置[^2]"""
-        return APIResponse.success(TRANSLATE_SETTINGS)
+        """获取翻译配置"""
+        try:
+            # 从数据库中获取翻译配置
+            settings = self._load_settings_from_db()
+            return APIResponse.success(settings)
+        except Exception as e:
+            return APIResponse.error(f"获取配置失败: {str(e)}", 500)
+
+    @staticmethod
+    def _load_settings_from_db():
+        """
+        从数据库加载翻译配置
+        """
+        # 查询翻译相关的配置（api_setting 和 other_setting 分组）
+        settings = Setting.query.filter(
+            Setting.group.in_(['api_setting', 'other_setting']),
+            Setting.deleted_flag == 'N'
+        ).all()
+
+        # 转换为配置字典
+        config = {}
+        for setting in settings:
+            # 如果 serialized 为 True，则反序列化 value
+            value = json.loads(setting.value) if setting.serialized else setting.value
+
+            # 根据 alias 存储配置
+            if setting.alias == 'models':
+                config['models'] = value.split(',') if isinstance(value, str) else value
+            elif setting.alias == 'default_model':
+                config['default_model'] = value
+            elif setting.alias == 'default_backup':
+                config['default_backup'] = value
+            elif setting.alias == 'api_url':
+                config['api_url'] = value
+            elif setting.alias == 'api_key':
+                config['api_key'] = value
+            elif setting.alias == 'prompt':
+                config['prompt_template'] = value
+            elif setting.alias == 'threads':
+                config['max_threads'] = int(value) if value.isdigit() else 10  # 默认10线程
+
+        # 设置默认值（如果数据库中没有相关配置）
+        config.setdefault('models', ['gpt-3.5-turbo', 'gpt-4'])
+        config.setdefault('default_model', 'gpt-3.5-turbo')
+        config.setdefault('default_backup', 'gpt-3.5-turbo')
+        config.setdefault('api_url', '')
+        config.setdefault('api_key', '')
+        config.setdefault('prompt_template', '请将以下内容翻译为{target_lang}')
+        config.setdefault('max_threads', 10)
+
+        return config
 
 
 class TranslateProcessResource(Resource):

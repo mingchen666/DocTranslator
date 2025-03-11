@@ -585,7 +585,7 @@ function getTranslateSetting() {
       models.value = setting.models
       form.value.model = setting.default_model
       form.value.backup_model = setting.default_backup
-      form.value.prompt = setting.prompt
+      form.value.prompt = setting.prompt_template
       form.value.threads = setting.threads
       translatesSettingData.value = setting
 
