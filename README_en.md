@@ -11,9 +11,9 @@
 ## 🌟 Features
 
 - **Supports Multiple Document Formats**  
-  📑 **txt**, 📝 **markdown**, 📄 **word**, 📊 **csv**, 📈 **excel**, 📑 **pdf**, 📽️ **ppt** AI translation.
+  📑 **txt**, 📝 **markdown**, 📄 **word**, 📊 **csv**, 📈 **excel**, 📑 **pdf(Not currently supported)**, 📽️ **ppt** AI translation.
   
-- **Supports Scanned PDF Translation**  
+- **Scanned PDF Translation(Not currently supported)**  
   🔍 Even scanned PDF files can be easily translated!
 
 - **Compatible with OpenAI Format APIs**  
@@ -38,6 +38,18 @@
 - **Deployment**: Docker + Nginx  
 
 ---
+
+## Demo Preview  
+### Frontend Demo  
+![Frontend Page](docs/images/image1.png)  
+![Frontend Page 2](docs/images/image2.png)  
+
+### Backend Demo  
+![Backend Page](docs/images/image3.png)  
+![Backend Page 2](docs/images/image4.png)
+
+
+
 
 ## 🚀 Local Development
 
@@ -160,6 +172,11 @@ docker run -d \
 
 ---
 
+## 📢 Join Our Community  
+If you have any questions or would like to discuss, feel free to join our QQ group!  
+![QQ Group](docs/images/qq-group.png)
+
+
 ## 📝 User Guide
 
 1. **Upload Documents**: Select the documents you want to translate on the frontend page and upload them.
@@ -183,9 +200,8 @@ We welcome contributions!
 ## 💖 Support
 
 If DocTranslator has been helpful to you, consider supporting the project! Your support keeps me motivated to continue developing! 😊  
-🎉 **Support Code**:  
-![Support Code](docs/e652698b250efb6e5151b084bd08814.jpg)  
-
+🎉 **Support Code**:   
+<img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="Support Code" width="300">
 ---
 
 ## 📞 Contact Me

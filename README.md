@@ -13,9 +13,9 @@
 ## 🌟 功能特性
 
 - **支持多种文档格式**  
-  📑 **txt**、📝 **markdown**、📄 **word**、📊 **csv**、📈 **excel**、📑 **pdf**、📽️ **ppt** 文档的 AI 翻译。
+  📑 **txt**、📝 **markdown**、📄 **word**、📊 **csv**、📈 **excel**、📑 **pdf(暂不支持)**、📽️ **ppt** 文档的 AI 翻译。
   
-- **支持扫描 PDF 翻译**  
+- **扫描 PDF 翻译(暂不支持)**  
   🔍 即使是扫描版的 PDF 文件，也能轻松翻译！
 
 - **兼容 OpenAI 格式的 API**  
@@ -40,6 +40,15 @@
 - **部署**：Docker + Nginx  
 
 ---
+
+## 效果如图:
+### 前端页面演示
+![前端页面](docs/images/image1.png)
+![前端页面2](docs/images/image2.png)
+### 后端页面演示
+![后端页面](docs/images/image3.png)
+![后端页面2](docs/images/image4.png)
+
 
 ## 🚀 本地开发
 
@@ -169,6 +178,10 @@ docker run -d \
 
 ---
 
+## 📢 交流群
+有任何问题想交流，欢迎加入我们的交流群
+![QQ交流群](docs/images/qq-group.png)
+
 ## 📝 使用指南
 
 1. **上传文档**：在前端页面选择需要翻译的文档并上传。
@@ -193,8 +206,7 @@ docker run -d \
 
 如果 DocTranslator 对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
 🎉 **赞赏码**：  
-![赞赏码](docs/e652698b250efb6e5151b084bd08814.jpg)  
-
+<img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="赞赏码" width="300">
 ---
 
 ## 📞 联系我
