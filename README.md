@@ -4,6 +4,7 @@
 
 **DocTranslator** 文档翻译，支持多种文件格式的翻译，兼容 OpenAI 格式的 API，并支持批量操作和多线程处理。无论是个人用户还是企业团队，DocTranslator 都能帮助你高效完成文档翻译任务！✨
 
+[在线预览](https://demo.doctranslate.top) 
 ---
 
 [English](README_en.md) 🌍
