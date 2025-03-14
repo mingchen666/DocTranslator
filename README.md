@@ -153,7 +153,7 @@ docker run -d \
   --network my-network \
   -p 5000:5000 \
   -v $(pwd)/backend/db:/app/db \
-  ezwork-api
+  eggsunsky/doctranslator:latest
 ```
 
 ### 4. 启动 Nginx
