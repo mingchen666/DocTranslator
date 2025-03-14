@@ -110,9 +110,46 @@ pnpm dev
 
 ---
 
+## 🐳 Docker 部署（在线镜像beta版本）
 
+### 1. 创建 Docker 网络
 
-## 🐳 Docker 部署
+```bash
+docker network create my-network
+```
+
+### 2. 运行后端容器
+
+```bash
+cd ..
+docker run -d \
+  --name backend-container \
+  --network my-network \
+  -p 5000:5000 \
+  -v $(pwd)/backend/db:/app/db \
+  eggsunsky/doctranslator:latest
+```
+### 3. 启动 Nginx
+
+```bash
+docker run -d \
+  --name nginx-container \
+  -p 1475:80 \
+  -p 8081:8081 \
+  -v $(pwd)/nginx/nginx.conf:/etc/nginx/conf.d/default.conf \
+  -v $(pwd)/frontend/dist:/usr/share/nginx/html/frontend \
+  -v $(pwd)/admin/dist:/usr/share/nginx/html/admin \
+  --network my-network \
+  nginx:stable-alpine
+```
+
+### 4. 访问服务
+
+- **前端**：http://localhost:1475  
+- **管理端**：http://localhost:8081  
+- **后端 API**：http://localhost:5000 
+
+## 🐳 Docker 部署（自行构建镜像）
 
 ### 1. 项目结构
 
@@ -141,7 +178,7 @@ docker network create my-network
 
 ```bash
 cd DocTranslator/backend
-docker build -t ezwork-api .
+docker build -t doctranslator .
 ```
 
 #### 3.3 运行后端容器
@@ -153,7 +190,7 @@ docker run -d \
   --network my-network \
   -p 5000:5000 \
   -v $(pwd)/backend/db:/app/db \
-  eggsunsky/doctranslator:latest
+  doctranslator
 ```
 
 ### 4. 启动 Nginx
