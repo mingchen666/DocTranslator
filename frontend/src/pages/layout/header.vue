@@ -315,7 +315,7 @@ import { ref, computed, watch, defineProps, onMounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon/index.vue'
 import $bus from '@/bus'
 import { ElMessage, ElMessageBox } from 'element-plus'
-store.setTitle('EZ-work AI文档翻译')
+store.setTitle('DocTranslator AI文档翻译')
 const router = useRouter()
 const props = defineProps({
   title: String,

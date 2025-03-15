@@ -3,7 +3,7 @@ const VITE_APP_TITLE = import.meta.env.VITE_APP_TITLE
 </script>
 
 <template>
-  <footer class="layout-footer"> EZ-work©Powerd by EHEWON</footer>
+  <footer class="layout-footer"> DocTranslator©Powerd by DocTranslator</footer>
 </template>
 
 <style lang="scss" scoped>

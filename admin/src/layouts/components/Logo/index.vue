@@ -20,7 +20,7 @@ const { isLeft, isTop } = useLayoutMode()
         <img :src="logo" class="layout-logo" />
       </router-link>
       <router-link v-else key="expand" to="/">
-        <img src="@/assets/layouts/logo-text-new.png" class="layout-logo-text" />
+        <img src="@/assets/layouts/logo-text-2.png" class="layout-logo-text" />
       </router-link>
     </transition>
   </div>

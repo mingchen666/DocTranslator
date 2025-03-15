@@ -57,7 +57,7 @@ const logout = () => {
         </div>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item divided @click="$router.push('/password')">
+            <el-dropdown-item divided @click="$router.push('/setting/password')">
               <span style="display: block">修改密码</span>
             </el-dropdown-item>
             <el-dropdown-item divided @click="logout">
