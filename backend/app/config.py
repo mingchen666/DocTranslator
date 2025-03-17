@@ -37,9 +37,8 @@ class Config:
     DATE_FORMAT = "%Y-%m-%d"  # 日期格式
     ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc'}
     # UPLOAD_FOLDER = '/uploads'  # 建议使用绝对路径
-    MB = 1024 * 1024
-    MAX_FILE_SIZE = 20 * MB  # 10MB
-    MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 100 * MB))  # 800MB
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 800 * 1024 * 1024))  # 默认80MB # 默认80MB
     # 翻译结果存储配置
     STORAGE_FOLDER = '/app/storage'  # 翻译结果存储路径
     STATIC_FOLDER = '/public/static'  # 设置静态文件路径
