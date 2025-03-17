@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: docai:v1
+    container_name: doc-ai
+    env_file:  # ✅ 使用 env_file 而非 environment
+      - ./backend/.env  # 明确指定 .env 文件路径
+    volumes:
+      - ./backend/db:/app/db
+    ports:
+      - "38073:5000"
+    networks:
+      - docai-network
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-container
+    ports:
+      - "38071:80"    # 前端端口
+      - "38072:8081"  # 管理端口
+    volumes:
+      #- ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - /volume1/docker/工具软件文件/文档AI翻译工具/DocTranslator/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      #- ./frontend/dist:/usr/share/nginx/html/frontend
+      - /volume1/docker/工具软件文件/文档AI翻译工具/DocTranslator/frontend/dist:/usr/share/nginx/html/frontend
+      #- ./admin/dist:/usr/share/nginx/html/admin
+      - /volume1/docker/工具软件文件/文档AI翻译工具/DocTranslator/admin/dist:/usr/share/nginx/html/admin
+    networks:
+      - docai-network
+
+networks:
+  docai-network:
+    driver: bridge  # 默认驱动，可省略
