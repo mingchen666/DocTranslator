@@ -218,7 +218,7 @@ class TranslateListResource(Resource):
         query = Translate.query.filter_by(
             customer_id=get_jwt_identity(),
             deleted_flag='N'
-        )
+        ).order_by(Translate.created_at.asc())  # 按创建时间正序排序，最新的在最后面
 
         # 检查 status_filter 是否是合法值
         if status_filter:
@@ -269,7 +269,8 @@ class TranslateListResource(Resource):
                 'start_at': t.start_at.strftime('%Y-%m-%d %H:%M:%S') if t.start_at else "--",
                 # 开始时间
                 'lang': t.lang,
-                'target_filepath': t.target_filepath
+                'target_filepath': t.target_filepath,
+                'error_message': t.error_message if t.status == 'failed' else ''  # 添加错误信息
             })
 
         # 返回响应数据
@@ -367,7 +368,7 @@ class TranslateProcessResource(Resource):
 
         return APIResponse.success({
             'status': translate.status,
-            'progress': float(translate.process),
+            'process': float(translate.process),
             'download_url': translate.target_filepath if translate.status == 'done' else None
         })
 

@@ -33,14 +33,18 @@ class FileUploadResource1(Resource):
                 f"仅支持以下格式：{', '.join(current_app.config['ALLOWED_EXTENSIONS'])}", 400)
 
         # 验证文件大小
-        if not self.validate_file_size(file.stream):
+        file_stream = file.stream
+        file_stream.seek(0, os.SEEK_END)
+        file_size = file_stream.tell()
+        file_stream.seek(0)
+        
+        if file_size > current_app.config['MAX_FILE_SIZE']:
             return APIResponse.error(
                 f"文件大小超过{current_app.config['MAX_FILE_SIZE'] // (1024 * 1024)}MB限制", 400)
 
         # 获取用户存储信息
         user_id = get_jwt_identity()
         customer = Customer.query.get(user_id)
-        file_size = request.content_length  # 使用实际内容长度
 
         # 验证存储空间
         if customer.storage + file_size > current_app.config['MAX_USER_STORAGE']:
@@ -98,13 +102,13 @@ class FileUploadResource1(Resource):
     @staticmethod
     def allowed_file(filename):
         # """验证文件类型是否允许"""# 暂不支持PDF 'pdf',
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc'}
+        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc', 'pdf'}
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     @staticmethod
     def validate_file_size(file_stream):
         """验证文件大小是否超过限制"""
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MAX_FILE_SIZE = current_app.config['MAX_FILE_SIZE']
         file_stream.seek(0, os.SEEK_END)
         file_size = file_stream.tell()
         file_stream.seek(0)
@@ -160,14 +164,18 @@ class FileUploadResource(Resource):
                 f"仅支持以下格式：{', '.join(current_app.config['ALLOWED_EXTENSIONS'])}", 400)
 
         # 验证文件大小
-        if not self.validate_file_size(file.stream):
+        file_stream = file.stream
+        file_stream.seek(0, os.SEEK_END)
+        file_size = file_stream.tell()
+        file_stream.seek(0)
+        
+        if file_size > current_app.config['MAX_FILE_SIZE']:
             return APIResponse.error(
                 f"文件大小超过{current_app.config['MAX_FILE_SIZE'] // (1024 * 1024)}MB限制", 400)
 
         # 获取用户存储信息
         user_id = get_jwt_identity()
         customer = Customer.query.get(user_id)
-        file_size = request.content_length  # 使用实际内容长度
 
         # 验证存储空间
         if customer.storage + file_size > current_app.config['MAX_USER_STORAGE']:
@@ -225,13 +233,13 @@ class FileUploadResource(Resource):
     @staticmethod
     def allowed_file(filename):
         """验证文件类型是否允许"""
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc'}
+        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc', 'pdf'}
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     @staticmethod
     def validate_file_size(file_stream):
         """验证文件大小是否超过限制"""
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MAX_FILE_SIZE = current_app.config['MAX_FILE_SIZE']
         file_stream.seek(0, os.SEEK_END)
         file_size = file_stream.tell()
         file_stream.seek(0)
