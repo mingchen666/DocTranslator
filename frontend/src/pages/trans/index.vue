@@ -33,7 +33,7 @@
               <span>上传文档</span>
             </button>
             <div class="title phone_show">点击按钮选择添加文档</div>
-            <div class="tips">支持格式{{ accpet_tip }}，文件≤10MB</div>
+            <div class="tips">支持格式{{ accpet_tip }}，文件≤30MB</div>
           </div>
         </el-upload>
       </div>
@@ -732,7 +732,7 @@ function uploadSuccess1(data) {
 
 function uploadError(data) {
   ElMessage({
-    message: '文件上传失败，请检查文件是否超过10M',
+    message: '文件上传失败，请检查文件是否超过30M',
     type: 'error'
   })
 }
