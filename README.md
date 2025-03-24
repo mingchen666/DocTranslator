@@ -218,7 +218,7 @@ docker run -d \
 
 ## 📢 交流群
 有任何问题想交流，欢迎加入我们的交流群
-![QQ交流群](docs/images/qq-group.png)
+<img src="docs/images/qq-group.png" alt="交流群" width="350">
 
 ## 📝 使用指南
 
