@@ -104,7 +104,7 @@ class FileUploadResource1(Resource):
     @staticmethod
     def validate_file_size(file_stream):
         """验证文件大小是否超过限制"""
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MAX_FILE_SIZE = current_app.config['MAX_FILE_SIZE']#10 * 1024 * 1024  # 10MB
         file_stream.seek(0, os.SEEK_END)
         file_size = file_stream.tell()
         file_stream.seek(0)
@@ -231,7 +231,7 @@ class FileUploadResource(Resource):
     @staticmethod
     def validate_file_size(file_stream):
         """验证文件大小是否超过限制"""
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MAX_FILE_SIZE =current_app.config['MAX_FILE_SIZE']# 10 * 1024 * 1024  # 10MB
         file_stream.seek(0, os.SEEK_END)
         file_size = file_stream.tell()
         file_stream.seek(0)

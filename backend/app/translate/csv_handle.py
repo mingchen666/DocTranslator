@@ -59,7 +59,7 @@ def start(trans):
     while run_index <= len(texts) - 1:
         if threading.activeCount() < max_run + before_active_count:
             if not event.is_set():
-                thread = threading.Thread(target=translate.get, args=(trans, event, texts, run_index))
+                thread = threading.Thread(target=to_translate.get, args=(trans, event, texts, run_index))
                 thread.start()
                 run_index += 1
             else:
