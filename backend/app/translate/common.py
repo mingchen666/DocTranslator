@@ -68,3 +68,27 @@ def format_file_path(filepath):
     filename=filename.replace(" ",r"\ ").replace("/","\\");
     parentpath=os.path.dirname(filepath)
     return "{}/{}".format(parentpath, filename)
+
+def convert_language_name_to_code(language_name):
+    """将中文语言名称转换为语言代码"""
+    language_mapping = {
+        '中文': 'zh',
+        '英语': 'en',
+        '英文': 'en',
+        '日语': 'ja',
+        '日文': 'ja',
+        '法语': 'fr',
+        '法文': 'fr',
+        '德语': 'de',
+        '德文': 'de',
+        '俄语': 'ru',
+        '俄文': 'ru',
+        '西班牙语': 'es',
+        '西班牙文': 'es',
+        '韩语': 'ko',
+        '韩文': 'ko',
+        '阿拉伯语': 'ar',
+        '葡萄牙语': 'pt',
+        '意大利语': 'it'
+    }
+    return language_mapping.get(language_name, 'en')  # 默认返回英文
