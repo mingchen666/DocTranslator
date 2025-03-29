@@ -1,10 +1,9 @@
 # resources/comparison.py
-import os
-import zipfile
-from datetime import datetime
-from io import BytesIO
 
+import zipfile
+from io import BytesIO
 import pandas as pd
+import pytz
 from flask import request, current_app, send_file
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -54,12 +53,12 @@ class MyComparisonListResource(Resource):
             'added_count': comparison.added_count,
             'content': content_list,  # 返回解析后的数组
             'customer_id': comparison.customer_id,
-            'created_at': comparison.created_at.strftime('%Y-%m-%d %H:%M') if comparison.created_at else None,  # 格式化时间
-            'updated_at': comparison.updated_at.strftime('%Y-%m-%d %H:%M') if comparison.updated_at else None,  # 格式化时间
+            'created_at': comparison.created_at.strftime(
+                '%Y-%m-%d %H:%M') if comparison.created_at else None,  # 格式化时间
+            'updated_at': comparison.updated_at.strftime(
+                '%Y-%m-%d %H:%M') if comparison.updated_at else None,  # 格式化时间
             'deleted_flag': comparison.deleted_flag
         }
-
-
 
 
 # 获取共享术语表列表
@@ -148,12 +147,11 @@ class SharedComparisonListResource(Resource):
 
 
 
-
 # 编辑术语列表
 class EditComparisonResource(Resource):
     @jwt_required()
     def post(self, id):
-        """编辑术语表[^3]"""
+        """编辑术语表"""
         comparison = Comparison.query.filter_by(
             id=id,
             customer_id=get_jwt_identity()
@@ -162,15 +160,42 @@ class EditComparisonResource(Resource):
         data = request.form
         if 'title' in data:
             comparison.title = data['title']
-        if 'content' in data:
-            comparison.content = data['content']
         if 'origin_lang' in data:
             comparison.origin_lang = data['origin_lang']
         if 'target_lang' in data:
             comparison.target_lang = data['target_lang']
+        if 'share_flag' in data:
+            comparison.share_flag = data['share_flag']
+        if 'added_count' in data:
+            try:
+                comparison.added_count = int(data['added_count'])
+            except ValueError:
+                return APIResponse.error("无效的 added_count 格式", 400)
+
+        # 更新 content
+        content_list = []
+        for key, value in data.items():
+            if key.startswith('content[') and '][origin]' in key:
+                # 提取索引
+                index = key.split('[')[1].split(']')[0]
+                origin = value
+                target = data.get(f'content[{index}][target]', '')
+                content_list.append(f"{origin}: {target}")
+
+        # 将 content_list 转换为字符串
+        content_str = '; '.join(content_list)
+        comparison.content = content_str
+
+        # 获取应用配置中的时区
+        timezone_str = current_app.config['TIMEZONE']
+        timezone = pytz.timezone(timezone_str)
+
+        # 更新 updated_at 字段
+        comparison.updated_at = datetime.now(timezone)
 
         db.session.commit()
         return APIResponse.success(message='术语表更新成功')
+
 
 # 更新术语表共享状态
 class ShareComparisonResource(Resource):
@@ -189,7 +214,6 @@ class ShareComparisonResource(Resource):
         comparison.share_flag = data['share_flag']
         db.session.commit()
         return APIResponse.success(message='共享状态已更新')
-
 
 
 # 复制到我的术语库
@@ -215,6 +239,7 @@ class CopyComparisonResource(Resource):
         return APIResponse.success({
             'new_id': new_comparison.id
         })
+
 
 # 收藏/取消收藏
 class FavoriteComparisonResource(Resource):
@@ -243,6 +268,7 @@ class FavoriteComparisonResource(Resource):
         db.session.commit()
         return APIResponse.success(message=message)
 
+
 # 创建新术语表
 class CreateComparisonResource(Resource):
     @jwt_required()
@@ -266,8 +292,11 @@ class CreateComparisonResource(Resource):
         # 将 content_list 转换为字符串
         content_str = '; '.join(content_list)
 
+        # 获取应用配置中的时区
+        timezone_str = current_app.config['TIMEZONE']
+        timezone = pytz.timezone(timezone_str)
         # 获取当前时间
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone)
 
         # 创建术语表
         comparison = Comparison(
@@ -278,7 +307,7 @@ class CreateComparisonResource(Resource):
             customer_id=get_jwt_identity(),
             share_flag=data.get('share_flag', 'N'),
             created_at=current_time,  # 显式赋值
-            updated_at=current_time   # 显式赋值
+            updated_at=current_time  # 显式赋值
         )
         db.session.add(comparison)
         db.session.commit()
@@ -324,6 +353,7 @@ class DownloadTemplateResource(Resource):
             download_name='术语表模板.xlsx'
         )
 
+
 # 导入术语表
 class ImportComparisonResource(Resource):
     @jwt_required()
@@ -345,7 +375,8 @@ class ImportComparisonResource(Resource):
             if not {'源术语', '目标术语'}.issubset(df.columns):
                 return APIResponse.error('文件格式不符合模板要求', 406)
             # 解析 Excel 文件内容
-            content = ';'.join([f"{row['源术语']}: {row['目标术语']}" for _, row in df.iterrows()])  # 按 ': ' 分隔
+            content = ';'.join(
+                [f"{row['源术语']}: {row['目标术语']}" for _, row in df.iterrows()])  # 按 ': ' 分隔
             # 创建术语表
             comparison = Comparison(
                 title='导入的术语表',
@@ -365,7 +396,6 @@ class ImportComparisonResource(Resource):
         except Exception as e:
             # 捕获并返回错误信息
             return APIResponse.error(f"文件导入失败：{str(e)}", 500)
-
 
 
 # 导出单个术语表
@@ -445,5 +475,3 @@ class ExportAllComparisonsResource(Resource):
             as_attachment=True,
             download_name=f'术语表_{datetime.now().strftime("%Y%m%d")}.zip'
         )
-
-

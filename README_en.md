@@ -4,17 +4,16 @@
 
 ---
 
-[中文](README.md) 🌏
+[[中文]](README.md)
 
 ---
 
 ## 🌟 Features
 
 - **Supports Multiple Document Formats**  
-  📑 **txt**, 📝 **markdown**, 📄 **word**, 📊 **csv**, 📈 **excel**, 📑 **pdf(Not currently supported)**, 📽️ **ppt** AI translation.
+  📑 **txt**, 📝 **markdown**, 📄 **word**, 📊 **csv**, 📈 **excel**, 📑 **pdf(Non scanned version)**, 📽️ **ppt** AI translation.
   
-- **Scanned PDF Translation(Not currently supported)**  
-  🔍 Even scanned PDF files can be easily translated!
+
 
 - **Compatible with OpenAI Format APIs**  
   🤖 Supports any endpoint API (proxy API) that conforms to the OpenAI format, flexibly adapting to various AI models.
@@ -169,7 +168,14 @@ docker run -d \
 - **Frontend**: http://localhost:1475  
 - **Admin Panel**: http://localhost:8081  
 - **Backend API**: http://localhost:5000  
+   - *Account*: admin ;*Password*: 123456
+---
 
+## 💖 Support
+
+If DocTranslator has been helpful to you, consider supporting the project! Your support keeps me motivated to continue developing! 😊  
+🎉 **Support Code**:   
+<img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="Support Code" width="300">
 ---
 
 ## 📢 Join Our Community  
@@ -197,12 +203,7 @@ We welcome contributions!
 
 ---
 
-## 💖 Support
 
-If DocTranslator has been helpful to you, consider supporting the project! Your support keeps me motivated to continue developing! 😊  
-🎉 **Support Code**:   
-<img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="Support Code" width="300">
----
 
 ## 📞 Contact Me
 
@@ -213,3 +214,7 @@ For any questions or suggestions, feel free to reach out:
 ## 📌 Note
 
 This project is a refactored and optimized version based on [ezwork](https://github.com/EHEWON/ezwork-ai-doc-translation). Thanks to the original author for their contribution! 🙏
+
+## 🙏 Thanks
+
+  [BabelDOC](https://github.com/funstory-ai/BabelDOC)

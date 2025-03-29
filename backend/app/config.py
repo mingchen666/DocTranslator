@@ -50,6 +50,9 @@ class Config:
     # API配置
     API_URL = 'https://api.example.com'
     TRANSLATE_MODELS = ['gpt-3.5', 'gpt-4']
+
+    # 时区配置
+    TIMEZONE = 'Asia/Shanghai'
     @property
     def allowed_domains(self):
         """获取格式化的域名列表"""
@@ -63,7 +66,7 @@ class DevelopmentConfig(Config):
     # SQLite配置（开发环境）
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'DEV_DATABASE_URL',
-        f'sqlite:////www/wwwroot/ez-work/backend/dev.db'  # 显式绝对路径
+        f'sqlite:////www/wwwroot/DocTranslator/backend/dev.db'  # 显式绝对路径
     )
     # SQLALCHEMY_DATABASE_URI = 'sqlite:///yourdatabase.db'
     SQLALCHEMY_ENGINE_OPTIONS = {

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { reactive, ref, watch } from "vue"
+import { reactive, ref, watch, computed } from "vue"
 import { changeCustomerStatusApi, updateCustomerDataApi, getCustomerDataApi } from "@/api/customer"
 import { type CreateOrUpdateCustomerRequestData, type GetCustomerData } from "@/api/customer/types/customer"
 import { type FormInstance, type FormRules, ElMessage } from "element-plus"
@@ -21,7 +21,10 @@ const DEFAULT_FORM_DATA: CreateOrUpdateCustomerRequestData = {
   id: undefined,
   email: "",
   password: "",
-  level: "common"
+  level: "common",
+  add_storage: 0
+  // status: true
+  // storage: 0
 }
 
 const dialogVisible = ref<boolean>(false)
@@ -115,6 +118,10 @@ const registerSuccess = () => {
   registerVisible.value = false
   getCustomerData()
 }
+// 用户已经存储的空间大小
+const storageMB = computed(() => {
+  return Math.floor(formData.value.storage / (1024 * 1024))
+})
 
 /** 监听分页参数的变化 */
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getCustomerData, { immediate: true })
@@ -146,6 +153,11 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getCust
               <el-tag v-else type="warning" effect="plain">普通用户</el-tag>
             </template>
           </el-table-column>
+          <el-table-column prop="storage" label="已用存储空间" align="left">
+            <template #default="{ row }"> {{ (row.storage / (1024 * 1024)).toFixed(2) }} MB </template>
+          </el-table-column>
+
+          <!-- <el-table-column prop="storage" label="已用存储空间" align="left" /> -->
           <el-table-column prop="status" label="账户状态" align="left">
             <template #default="scope">
               <el-tag v-if="scope.row.status == 'enabled'" type="success" effect="plain">启用</el-tag>
@@ -192,7 +204,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getCust
           <el-icon @click="resetForm"><Close /></el-icon>
         </div>
       </template>
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" label-position="left">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="150px" label-position="left">
         <el-form-item prop="email" label="注册邮箱">
           <el-input v-model="formData.email" placeholder="请输入注册邮箱" />
         </el-form-item>
@@ -201,6 +213,18 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getCust
             <el-option label="会员用户" value="vip" />
             <el-option label="普通用户" value="common" />
           </el-select>
+        </el-form-item>
+        <!-- 新增的存储空间字段 -->
+        <el-form-item prop="storage" label="新增存储空间(MB)">
+          <el-input-number
+            style="width: 80%"
+            :precision="0"
+            v-model="formData.add_storage"
+            :max="storageMB"
+            :step="5"
+            placeholder="请输入需要添加的存储空间(MB)"
+          />
+          <span class="ml-2">MB</span>
         </el-form-item>
         <el-form-item prop="password" label="密码">
           <el-input type="password" v-model="formData.password" placeholder="请输入" />

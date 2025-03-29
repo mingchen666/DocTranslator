@@ -3,6 +3,9 @@ export interface CreateOrUpdateCustomerRequestData {
   email: string
   password?: string
   level: string
+  add_storage: number
+  storage: number
+  // status: boolean
 }
 
 export interface GetCustomerRequestData {

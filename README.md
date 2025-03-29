@@ -4,20 +4,20 @@
 
 **DocTranslator** 文档翻译，支持多种文件格式的翻译，兼容 OpenAI 格式的 API，并支持批量操作和多线程处理。无论是个人用户还是企业团队，DocTranslator 都能帮助你高效完成文档翻译任务！✨
 
-[在线预览](https://demo.doctranslate.top) 
+[[English]](README_en.md)
+
 ---
 
-[English](README_en.md) 🌍
+[点击在线使用](https://demo.doctranslate.top) 
+
 
 ---
 
 ## 🌟 功能特性
 
 - **支持多种文档格式**  
-  📑 **txt**、📝 **markdown**、📄 **word**、📊 **csv**、📈 **excel**、📑 **pdf(暂不支持)**、📽️ **ppt** 文档的 AI 翻译。
+  📑 **txt**、📝 **markdown**、📄 **word**、📊 **csv**、📈 **excel**、📑 **pdf(非扫描版)**、📽️ **ppt** 文档的 AI 翻译。
   
-- **扫描 PDF 翻译(暂不支持)**  
-  🔍 即使是扫描版的 PDF 文件，也能轻松翻译！
 
 - **兼容 OpenAI 格式的 API**  
   🤖 支持任何符合 OpenAI 格式的端点 API（中转 API），灵活适配多种 AI 模型。
@@ -212,8 +212,15 @@ docker run -d \
 - **前端**：http://localhost:1475  
 - **管理端**：http://localhost:8081  
 - **后端 API**：http://localhost:5000  
+  - *账号*：admin ; *密码*：123456
 
+---
 
+## 💖 赞赏支持
+
+如果 DocTranslator 对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
+🎉 **赞赏码**：  
+<img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="赞赏码" width="300">
 ---
 
 ## 📢 交流群
@@ -236,23 +243,27 @@ docker run -d \
 
 ## 📜 许可
 
-[Apache-2.0 license](LICENSE)。
+[Apache-2.0 license](LICENSE)
 
 ---
 
-## 💖 赞赏支持
 
-如果 DocTranslator 对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
-🎉 **赞赏码**：  
-<img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="赞赏码" width="300">
----
 
 ## 📞 联系我
 
 如有任何问题或建议，请联系我：  
-
 ---
+
+## 👋 关于我
+
+在读生一枚，有点喜欢前端，喜欢探索AI应用和工具开发
+🎉 感谢大家的支持！欢迎 Star ⭐️ 和 Fork 🍴，一起完善 DocTranslator！
+
 
 ## 📌 说明
 
 本项目基于 [ezwork](https://github.com/EHEWON/ezwork-ai-doc-translation) 进行重构优化，感谢原作者的贡献！🙏
+
+## 🙏 感谢
+
+  [BabelDOC](https://github.com/funstory-ai/BabelDOC)

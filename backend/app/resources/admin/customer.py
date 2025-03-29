@@ -127,10 +127,10 @@ class AdminUpdateCustomerResource(Resource):
             customer.email = data['email']
         if 'level' in data:
             customer.level = data['level']
-
+        if 'add_storage' in data:
+            customer.storage = customer.storage-int(data['add_storage'])*1024*1024
         db.session.commit()
         return APIResponse.success(message='用户信息更新成功')
-
 
 # 删除用户
 class AdminDeleteCustomerResource(Resource):

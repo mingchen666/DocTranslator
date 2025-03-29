@@ -47,13 +47,13 @@ def get(trans, event, texts, index):
                 # 特别处理PDF类型
             # elif extension == ".pdf":
             #     return handle_pdf(trans, event, texts, index)
-            elif extension == ".pdf":
-                if text['type'] == "text":
-                    content = translate_html(text['text'], target_lang, model, prompt)
-                    time.sleep(0.1)
-                else:
-                    content = get_content_by_image(text['text'], target_lang)
-                    time.sleep(0.1)
+            # elif extension == ".pdf":
+            #     if text['type'] == "text":
+            #         content = translate_html(text['text'], target_lang, model, prompt)
+            #         time.sleep(0.1)
+            #     else:
+            #         content = get_content_by_image(text['text'], target_lang)
+            #         time.sleep(0.1)
             # ---------------这里实现不同模型格式的请求--------------
             elif extension == ".md":
                 content = req(text['text'], target_lang, model, prompt, True)

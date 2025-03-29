@@ -25,92 +25,6 @@ TRANSLATE_SETTINGS = {
 }
 
 
-class TranslateStartResource1(Resource):
-    @jwt_required()
-    def post(self):
-        """启动翻译任务（支持绝对路径和多参数）[^1]"""
-        data = request.form
-        required_fields = [
-            'server', 'model', 'lang', 'uuid',
-            'prompt', 'threads', 'file_name'
-        ]
-
-        # 参数校验
-        if not all(field in data for field in required_fields):
-            return APIResponse.error("缺少必要参数", 400)
-
-        # 验证OpenAI配置
-        if data['server'] == 'openai' and not all(k in data for k in ['api_url', 'api_key']):
-            return APIResponse.error("OpenAI服务需要API地址和密钥", 400)
-
-        try:
-            # 获取用户信息
-            user_id = get_jwt_identity()
-            customer = Customer.query.get(user_id)
-
-            # 生成绝对路径（跨平台兼容）
-            def get_absolute_storage_path(filename):
-                # 获取项目根目录的父目录（假设storage目录与项目目录同级）
-                base_dir = Path(current_app.root_path).parent.absolute()
-                # 按日期创建子目录（如 storage/translate/2024-01-20）
-                date_str = datetime.now().strftime('%Y-%m-%d')
-                # 创建目标目录（如果不存在）
-                target_dir = base_dir / "storage" / "translate" / date_str
-                target_dir.mkdir(parents=True, exist_ok=True)
-                # 返回绝对路径（保持原文件名）
-                return str(target_dir / filename)
-
-            origin_filename = data['file_name']
-
-            # 生成翻译结果绝对路径
-            target_abs_path = get_absolute_storage_path(origin_filename)
-
-            # 获取翻译类型（取最后一个type值）
-            translate_type = data.get('type[2]', 'trans_all_only_inherit')
-
-            # 查询或创建翻译记录
-            translate = Translate.query.filter_by(uuid=data['uuid']).first()
-            if not translate:
-                return APIResponse.error("未找到对应的翻译记录", 404)
-
-            # 更新翻译记录
-            translate.origin_filename = data['file_name']
-            translate.target_filepath = target_abs_path  # 存储翻译结果的绝对路径
-            translate.lang = data['lang']
-            translate.model = data['model']
-            translate.backup_model = data['backup_model']
-            translate.type = translate_type
-            translate.prompt = data['prompt']
-            translate.threads = int(data['threads'])
-            translate.api_url = data.get('api_url', '')
-            translate.api_key = data.get('api_key', '')
-            translate.backup_model = data.get('backup_model', '')
-            translate.origin_lang = data.get('origin_lang', '')
-            # 获取 comparison_id 并转换为整数
-            comparison_id = data.get('comparison_id', '0')  # 默认值为 '0'
-            translate.comparison_id = int(comparison_id) if comparison_id else None
-            prompt_id = data.get('prompt_id', '0')
-            translate.prompt_id = int(prompt_id) if prompt_id else None
-            translate.doc2x_flag = data.get('doc2x_flag', 'N')
-            translate.doc2x_secret_key = data.get('doc2x_secret_key', '')
-
-            # 保存到数据库
-            db.session.commit()
-            # with current_app.app_context():  # 确保在应用上下文中运行
-            # 启动翻译引擎，传入 current_app
-            TranslateEngine(translate.id).execute()
-
-            return APIResponse.success({
-                "task_id": translate.id,
-                "uuid": translate.uuid,
-                "target_path": target_abs_path
-            })
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"翻译任务启动失败: {str(e)}", exc_info=True)
-            return APIResponse.error("任务启动失败", 500)
-
 
 
 class TranslateStartResource(Resource):
@@ -234,11 +148,15 @@ class TranslateListResource(Resource):
         data = []
         for t in pagination.items:
             # 计算花费时间（基于 created_at 和 end_at）
-            if t.created_at and t.end_at:
-                spend_time = t.end_at - t.created_at
-                spend_time_minutes = int(spend_time.total_seconds() // 60)
-                spend_time_seconds = int(spend_time.total_seconds() % 60)
-                spend_time_str = f"{spend_time_minutes}分{spend_time_seconds}秒"
+            # 修复时间计算（强制显示分秒格式）
+            if t.start_at and t.end_at:
+                spend_time = t.end_at - t.start_at
+                total_seconds = spend_time.total_seconds()
+
+                # 强制分秒格式（即使不足1分钟也显示0分xx秒）
+                minutes = int(total_seconds // 60)
+                seconds = int(total_seconds % 60)
+                spend_time_str = f"{minutes}分{seconds}秒"
             else:
                 spend_time_str = "--"
 
@@ -297,7 +215,6 @@ class TranslateListResource(Resource):
             return "文本"
         else:
             return "其他"
-
 # 获取翻译配置
 class TranslateSettingResource(Resource):
     @jwt_required()
