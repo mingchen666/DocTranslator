@@ -1,8 +1,9 @@
-import asyncio
+import os
 import logging
 import shutil
-from pathlib import Path
+import asyncio
 import datetime
+from pathlib import Path
 from . import common, db, to_translate
 import babeldoc.high_level
 from babeldoc.document_il.translator.translator import OpenAITranslator
@@ -13,26 +14,25 @@ logger = logging.getLogger(__name__)
 
 
 def clean_output_filename(original_path: Path, output_dir: str) -> Path:
-    """清理多余后缀"""
+    """清理babeldoc生成的多余后缀"""
     stem = original_path.stem.split('.')[0]
     new_path = Path(output_dir) / f"{stem}{original_path.suffix}"
 
     for suffix in [
-        '.dual',
-        '.mono',
-        '.no_watermark.en.dual',
-        '.no_watermark.en.mono',
-        '.en.dual',
-        '.en.mono',
-        '.no_watermark.zh.mono',
-        '.no_watermark.zh.dual',
-        '.zh.dual',
-        '.zh.mono',
+        '.dual', '.mono',
+        '.no_watermark.en.dual', '.no_watermark.en.mono',
+        '.en.dual', '.en.mono',
+        '.no_watermark.zh.mono', '.no_watermark.zh.dual',
+        '.zh.dual', '.zh.mono',
+        *[f'.no_watermark.{lang}.mono' for lang in ['ja', 'fr', 'de', 'es']],
+        *[f'.no_watermark.{lang}.dual' for lang in ['ja', 'fr', 'de', 'es']],
+        *[f'.{lang}.mono' for lang in ['ja', 'fr', 'de', 'es']],
+        *[f'.{lang}.dual' for lang in ['ja', 'fr', 'de', 'es']]
     ]:
         temp_path = Path(output_dir) / f"{stem}{suffix}{original_path.suffix}"
         if temp_path.exists():
             shutil.move(temp_path, new_path)
-            break  # 找到第一个匹配项即处理
+            break
 
     return new_path if new_path.exists() else None
 
@@ -61,7 +61,7 @@ async def async_translate_pdf(trans):
             base_url=trans.get('api_url', 'https://api.openai.com/v1'),
             ignore_cache=False
         )
-        a='no_watermark'
+
         # 完整翻译配置
         config = TranslationConfig(
             input_file=str(original_path),
@@ -87,13 +87,6 @@ async def async_translate_pdf(trans):
                     trans['id']
                 )
             elif event["type"] == "finish":
-                # 打印token统计（关键添加）
-                if hasattr(translator, 'last_usage'):
-                    usage = translator.last_usage
-                    logger.info(f"总token数: {usage.total_tokens}")
-                    logger.info(f"提示token数: {usage.prompt_tokens}")
-                    logger.info(f"完成token数: {usage.completion_tokens}")
-
                 # 处理输出文件名
                 final_path = clean_output_filename(original_path, trans['target_path_dir'])
 
@@ -105,9 +98,18 @@ async def async_translate_pdf(trans):
                         trans['id']
                     )
 
+                # 计算token使用量
+                token_count = getattr(translator, 'token_count', 0)
+                prompt_tokens = getattr(translator, 'prompt_token_count', 0)
+                completion_tokens = getattr(translator, 'completion_token_count', 0)
+
                 # 触发完成回调
                 spend_time = (datetime.datetime.now() - start_time).total_seconds()
-                to_translate.complete(trans, text_count=1, spend_time=spend_time)
+                to_translate.complete(
+                    trans,
+                    text_count=1,  # PDF按文件计数
+                    spend_time=spend_time
+                )
                 return True
 
     except Exception as e:
@@ -125,7 +127,7 @@ def translate_pdf(trans):
 
 
 def start(trans):
-    """启动PDF翻译"""
+    """启动PDF翻译（与TXT翻译保持相同接口）"""
     try:
         # 参数检查
         original_path = Path(trans['file_path'])
@@ -138,11 +140,18 @@ def start(trans):
             trans['id']
         )
 
+        # 确保输出目录存在
+        os.makedirs(trans['target_path_dir'], exist_ok=True)
+
         # 执行翻译
-        return translate_pdf(trans)
+        success = translate_pdf(trans)
+        if not success:
+            raise RuntimeError("PDF翻译过程失败")
+
+        return True
 
     except Exception as e:
-        logger.error(f"任务初始化失败: {str(e)}")
+        logger.error(f"PDF任务初始化失败: {str(e)}")
         db.execute(
             "UPDATE translate SET status='failed', failed_reason=%s WHERE id=%s",
             str(e), trans['id']

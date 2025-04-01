@@ -33,4 +33,4 @@ pdfkit==1.0.0
 docx2pdf==0.1.8
 Shapely==2.0.7
 # BabelDOC pdf翻译
-BabelDOC==0.2.21
+BabelDOC==0.2.27
