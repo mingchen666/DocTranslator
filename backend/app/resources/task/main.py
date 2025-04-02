@@ -68,13 +68,6 @@ def main_wrapper(task_id, config, origin_path):
         return False
 
 
-def _init_translate_config1(task):
-    """初始化翻译配置（如OpenAI）"""
-    if task.api_url and task.api_key:
-        import openai
-        openai.api_base = task.api_url
-        openai.api_key = task.api_key
-
 def pdf_handler(config, origin_path):
     return gptpdf.start(config)
     # if pdf.is_scanned_pdf(origin_path):

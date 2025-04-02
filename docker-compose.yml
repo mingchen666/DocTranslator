@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  backend:
+    image: eggsunsky/doctranslator:latest
+    container_name: backend-container
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/db:/app/db
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=your-secret-key
+      # 数据库配置 PROD_DATABASE_URL=sqlite:////app/db/dev.db
+      - SQLALCHEMY_DATABASE_URI=sqlite:////app/db/dev.db
+      # 开发环境数据库（SQLite）
+      - DEV_DATABASE_URL=sqlite:////app/db/dev.db
+      # 生产环境数据库（按需配置）sqlite 或者mysql
+      - PROD_DATABASE_URL=sqlite:////app/db/dev.db
+      # PROD_DATABASE_URL=mysql+pymysql://user:pwd@localhost/xxxx
+      # JWT 配置
+      - JWT_SECRET_KEY=sxxxxxx
+      - JWT_ACCESS_TOKEN_EXPIRES=172800
+      # 数据库配置
+      - MAIL_SERVER=smtp.qq.com
+      - MAIL_PORT=587
+      - MAIL_USE_TLS=true
+      - MAIL_USERNAME=xxxx@qq.com
+      - MAIL_PASSWORD=xxxxxx
+      - MAIL_DEFAULT_SENDER=ixxxx@qq.com
+      - ALLOWED_EMAIL_DOMAINS=qq.com,163.com,126.com
+      # 跨域 允许的域名
+      - ALLOWED_DOMAINS=*
+    networks:
+      - my-network
+
+  # ... existing code ...
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-container
+    ports:
+      - "1475:80"
+      - "8081:8081"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./frontend/dist:/usr/share/nginx/html/frontend
+      - ./admin/dist:/usr/share/nginx/html/admin
+    depends_on:
+      - backend
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    driver: bridge

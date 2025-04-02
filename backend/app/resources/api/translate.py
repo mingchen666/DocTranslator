@@ -1,6 +1,8 @@
 # resources/to_translate.py
 import json
 from pathlib import Path
+
+import pytz
 from flask import request, send_file, current_app, make_response
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -23,8 +25,6 @@ TRANSLATE_SETTINGS = {
     "max_threads": 5,
     "prompt_template": "请将以下内容翻译为{target_lang}"
 }
-
-
 
 
 class TranslateStartResource(Resource):
@@ -60,7 +60,7 @@ class TranslateStartResource(Resource):
                 target_dir = base_dir / "storage" / "translate" / date_str
                 target_dir.mkdir(parents=True, exist_ok=True)
                 # 返回绝对路径（保持原文件名）
-                return target_dir / filename
+                return str(target_dir / filename)
 
             origin_filename = data['file_name']
 
@@ -76,8 +76,8 @@ class TranslateStartResource(Resource):
                 return APIResponse.error("未找到对应的翻译记录", 404)
 
             # 更新翻译记录
-            translate.origin_filename = origin_filename
-            translate.target_filepath = str(target_abs_path)  # 存储翻译结果的绝对路径
+            translate.origin_filename = data['file_name']
+            translate.target_filepath = target_abs_path  # 存储翻译结果的绝对路径
             translate.lang = data['lang']
             translate.model = data['model']
             translate.backup_model = data['backup_model']
@@ -95,16 +95,19 @@ class TranslateStartResource(Resource):
             translate.prompt_id = int(prompt_id) if prompt_id else None
             translate.doc2x_flag = data.get('doc2x_flag', 'N')
             translate.doc2x_secret_key = data.get('doc2x_secret_key', '')
-
+            # 使用 UTC 时间并格式化
+            # current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+            # translate.created_at = current_time
             # 保存到数据库
             db.session.commit()
+            # with current_app.app_context():  # 确保在应用上下文中运行
             # 启动翻译引擎，传入 current_app
             TranslateEngine(translate.id).execute()
 
             return APIResponse.success({
                 "task_id": translate.id,
                 "uuid": translate.uuid,
-                "target_path": str(target_abs_path)
+                "target_path": target_abs_path
             })
 
         except Exception as e:
@@ -113,7 +116,7 @@ class TranslateStartResource(Resource):
             return APIResponse.error("任务启动失败", 500)
 
 
-
+# 修复时间显示
 class TranslateListResource(Resource):
     @jwt_required()
     def get(self):
@@ -215,11 +218,12 @@ class TranslateListResource(Resource):
             return "文本"
         else:
             return "其他"
-# 获取翻译配置
+
+# 翻译设置
 class TranslateSettingResource(Resource):
     @jwt_required()
     def get(self):
-        """获取翻译配置"""
+        """获取翻译配置（从数据库动态加载）[^1]"""
         try:
             # 从数据库中获取翻译配置
             settings = self._load_settings_from_db()
@@ -230,7 +234,8 @@ class TranslateSettingResource(Resource):
     @staticmethod
     def _load_settings_from_db():
         """
-        从数据库加载翻译配置
+        从数据库加载翻译配置[^2]
+        :return: 翻译配置字典
         """
         # 查询翻译相关的配置（api_setting 和 other_setting 分组）
         settings = Setting.query.filter(
@@ -338,8 +343,6 @@ class TranslateDownloadResource(Resource):
 
 
 
-
-
 class TranslateDownloadAllResource(Resource):
     @jwt_required()
     def get(self):
@@ -410,7 +413,6 @@ class PDFCheckResource(Resource):
             return APIResponse.error(f'检测失败: {str(e)}', 500)
 
 
-# resources/to_translate.py 补充接口
 class TranslateTestResource(Resource):
     def get(self):
         """测试翻译服务[^1]"""
