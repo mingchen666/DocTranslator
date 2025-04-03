@@ -5,7 +5,7 @@ from . import word
 from . import excel
 from . import powerpoint
 from . import pdf
-from . import gptpdf
+# from . import gptpdf
 from . import txt
 from . import csv_handle
 from . import md
@@ -16,7 +16,7 @@ __all__ = [
     'excel', 
     'powerpoint', 
     'pdf', 
-    'gptpdf', 
+    # 'gptpdf', 
     'txt', 
     'csv_handle', 
     'md',
