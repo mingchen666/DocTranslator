@@ -132,6 +132,7 @@ class AdminUpdateCustomerResource(Resource):
         db.session.commit()
         return APIResponse.success(message='用户信息更新成功')
 
+
 # 删除用户
 class AdminDeleteCustomerResource(Resource):
     @jwt_required()

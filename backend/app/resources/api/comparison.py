@@ -295,6 +295,8 @@ class CreateComparisonResource(Resource):
         # 获取应用配置中的时区
         timezone_str = current_app.config['TIMEZONE']
         timezone = pytz.timezone(timezone_str)
+
+
         # 获取当前时间
         current_time = datetime.now(timezone)
 

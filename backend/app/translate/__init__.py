@@ -16,7 +16,6 @@ __all__ = [
     'excel', 
     'powerpoint', 
     'pdf', 
-    # 'gptpdf', 
     'txt', 
     'csv_handle', 
     'md',

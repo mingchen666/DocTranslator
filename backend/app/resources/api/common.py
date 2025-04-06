@@ -1,15 +1,14 @@
 # app/resources/api/common.py
 from flask_restful import Resource
-
+from app.models.setting import SystemSetting
 from app.utils.response import APIResponse
-from app.models.setting import Setting
 
 
 class SystemConfigResource(Resource):
     def get(self):
         """获取系统版本配置 [^6]"""
         try:
-            version = Setting.get_version()
+            version = SystemSetting.get_version()
             return APIResponse.success({"version": version})
 
         except Exception as e:

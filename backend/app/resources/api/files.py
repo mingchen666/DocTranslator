@@ -14,7 +14,6 @@ from flask import request, current_app
 from datetime import datetime
 
 
-
 class FileUploadResource(Resource):
     @jwt_required()
     def post(self):
@@ -49,9 +48,9 @@ class FileUploadResource(Resource):
 
         try:
             # 生成存储路径
-            save_dir = Path(self.get_upload_dir())
+            save_dir = self.get_upload_dir()
             filename = file.filename  # 直接使用原始文件名
-            save_path = save_dir / filename
+            save_path = os.path.join(save_dir, filename)
 
             # 检查路径是否安全
             if not self.is_safe_path(save_dir, save_path):
@@ -73,7 +72,7 @@ class FileUploadResource(Resource):
                 uuid=file_uuid,
                 customer_id=user_id,
                 origin_filename=filename,
-                origin_filepath=str(save_path.resolve()),  # 使用绝对路径
+                origin_filepath=os.path.abspath(save_path),  # 使用绝对路径
                 target_filepath='',  # 目标文件路径暂为空
                 status='none',  # 初始状态为 none
                 origin_filesize=file_size,
@@ -88,7 +87,7 @@ class FileUploadResource(Resource):
                 'filename': filename,
                 'uuid': file_uuid,
                 'translate_id': translate_record.id,
-                'save_path': str(save_path.resolve())  # 返回绝对路径
+                'save_path': os.path.abspath(save_path)  # 返回绝对路径
             })
 
         except Exception as e:
@@ -98,14 +97,14 @@ class FileUploadResource(Resource):
 
     @staticmethod
     def allowed_file(filename):
-        """验证文件类型是否允许"""
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pdf','pptx', 'txt', 'md', 'csv', 'xls', 'doc'}
+        # """验证文件类型是否允许"""# 暂不支持PDF 'pdf',
+        ALLOWED_EXTENSIONS = {'docx', 'xlsx','pdf', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc'}
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     @staticmethod
     def validate_file_size(file_stream):
         """验证文件大小是否超过限制"""
-        MAX_FILE_SIZE =current_app.config['MAX_FILE_SIZE']# 30 * 1024 * 1024  # 10MB
+        MAX_FILE_SIZE = current_app.config['MAX_FILE_SIZE']# 30 * 1024 * 1024  # 30MB
         file_stream.seek(0, os.SEEK_END)
         file_size = file_stream.tell()
         file_stream.seek(0)
@@ -146,7 +145,7 @@ class FileUploadResource(Resource):
 class FileDeleteResource(Resource):
     @jwt_required()
     def post(self):
-        """文件删除接口"""
+        """文件删除接口[^1]"""
         data = request.form
         if 'uuid' not in data:
             return APIResponse.error('缺少必要参数', 400)
@@ -158,11 +157,11 @@ class FileDeleteResource(Resource):
                 return APIResponse.error('文件记录不存在', 404)
 
             # 获取文件绝对路径
-            file_path = Path(translate_record.origin_filepath)
+            file_path = translate_record.origin_filepath
 
             # 删除物理文件
-            if file_path.exists():
-                file_path.unlink()
+            if os.path.exists(file_path):
+                os.remove(file_path)
             else:
                 current_app.logger.warning(f"文件不存在：{file_path}")
 

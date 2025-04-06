@@ -68,13 +68,6 @@ def main_wrapper(task_id, config, origin_path):
         return False
 
 
-    # return gptpdf.start(config)
-    # if pdf.is_scanned_pdf(origin_path):
-    #     return gptpdf.start(config)
-    # else:
-    #     # 这里均使用gptpdf实现
-    #     return gptpdf.start(config)
-    return pdf.start(config)
 def _init_translate_config(trans):
     """
     初始化翻译配置[^5]
