@@ -1,4 +1,5 @@
 from datetime import date
+from sqlalchemy import text, inspect
 from app import db
 from app.models.prompt import Prompt
 
@@ -93,11 +94,68 @@ def insert_initial_data(app):
                     created_at=date.today()  # 自动设置当前时间
                 )
                 db.session.add(prompt)
-
+        # 设置prompt_fav表id为自动递增，执行 ALTER TABLE 语句
+        # db.session.execute(text("ALTER TABLE prompt_fav MODIFY COLUMN id BIGINT AUTO_INCREMENT;"))
         # 提交事务
         db.session.commit()
         print("✅ 初始化数据完成！")
 
 
 
+
+def is_auto_increment(table_name, column_name):
+    """检查指定表的指定字段是否已经是自动递增"""
+    inspector = inspect(db.engine)
+    columns = inspector.get_columns(table_name)
+    column = next((col for col in columns if col["name"] == column_name), None)
+    if not column:
+        return False
+    return column.get("autoincrement", False)
+
+def set_auto_increment(app):
+    with app.app_context():
+        # 获取数据库方言
+        dialect = db.engine.dialect.name
+        # 检查 id 字段是否已经是自动递增
+        if is_auto_increment("prompt_fav", "id"):
+            # print("✅ 'id' 字段已经自动递增（无需修改）")
+            return
+
+        if dialect == "mysql":
+            sql = "ALTER TABLE prompt_fav MODIFY COLUMN id BIGINT AUTO_INCREMENT;"
+            try:
+                db.session.execute(text(sql))
+                db.session.commit()
+                # print("✅ 'id' 字段已设置为自动递增（MySQL）")
+            except Exception as e:
+                db.session.rollback()
+                # print(f"❌ 设置自动递增失败: {e}")
+        elif dialect == "sqlite":
+            # SQLite 通过重建表的方式设置 id 字段为自动递增
+            try:
+                with db.engine.begin() as connection:
+                    # 1. 创建新表
+                    connection.execute(text("""
+                        CREATE TABLE prompt_fav_new (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            prompt_id INTEGER NOT NULL,
+                            customer_id INTEGER NOT NULL,
+                            created_at DATETIME,
+                            updated_at DATETIME
+                        );
+                    """))
+                    # 2. 复制数据
+                    connection.execute(text("""
+                        INSERT INTO prompt_fav_new (prompt_id, customer_id, created_at, updated_at)
+                        SELECT prompt_id, customer_id, created_at, updated_at FROM prompt_fav;
+                    """))
+                    # 3. 删除旧表
+                    connection.execute(text("DROP TABLE prompt_fav;"))
+                    # 4. 重命名新表
+                    connection.execute(text("ALTER TABLE prompt_fav_new RENAME TO prompt_fav;"))
+                # print("✅ 'id' 字段已设置为自动递增（SQLite）")
+            except Exception as e:
+                print(f"❌ 设置自动递增失败: {e}")
+        else:
+            raise NotImplementedError(f"Unsupported database dialect: {dialect}")
 

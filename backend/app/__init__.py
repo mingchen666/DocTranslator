@@ -1,11 +1,10 @@
 from flask import Flask
 from flask_cors import CORS
-
 from .config import get_config
 from .extensions import init_extensions, db, api
 from .models.setting import Setting
 from .resources.task.translate_service import TranslateEngine
-from .script.insert_init_db import insert_initial_data
+from .script.insert_init_db import insert_initial_data, set_auto_increment
 from .utils.response import APIResponse
 
 
@@ -41,6 +40,7 @@ def create_app(config_class=None):
         #     db.session.add(SystemSetting(key='version', value='business'))
         #     db.session.commit()
     insert_initial_data(app)
+    set_auto_increment(app)
     # 开发环境路由打印
     # if app.debug:
     #     with app.app_context():
