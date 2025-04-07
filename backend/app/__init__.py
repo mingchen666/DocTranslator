@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from .config import get_config
 from .extensions import init_extensions, db, api
@@ -24,6 +24,12 @@ def create_app(config_class=None):
     @app.errorhandler(404)
     def handle_404(e):
         return APIResponse.not_found()
+
+    from jwt.exceptions import ExpiredSignatureError
+    # 401拦截
+    @app.errorhandler(ExpiredSignatureError)
+    def handle_expired_token_error(e):
+        return jsonify({"message": "身份验证信息已过期，请重新登录"}), 401
 
     @app.errorhandler(500)
     def handle_500(e):

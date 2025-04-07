@@ -11,8 +11,8 @@ load_dotenv(BASE_DIR / '.env')  # 显式指定.env文件位置
 class Config:
     # JWT配置
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=360000)  # 1小时过期
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)  # 刷新令牌7天
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=5)  # 5天
+    # JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)  # 刷新令牌7天
     JWT_TOKEN_LOCATION = ['headers']  # 只从请求头获取
     JWT_HEADER_NAME = 'token'  # 匹配原项目可能的头部名称
     JWT_HEADER_TYPE = ''  # 不使用Bearer前缀
