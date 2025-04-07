@@ -20,7 +20,7 @@ class MyPromptListResource(Resource):
         prompts = [{
             'id': p.id,
             'title': p.title,
-            'content': p.content[:100] + '...' if len(p.content) > 100 else p.content,
+            'content': p.content,# [:100] + '...' if len(p.content) > 100 else p.content
             'share_flag': p.share_flag,
             'created_at': p.created_at.isoformat() if p.created_at else None
         } for p in query.all()]
@@ -161,6 +161,9 @@ class CopyPromptResource(Resource):
             share_flag='N',
             added_count=0
         )
+        print('打印原始内容长度',len(original.content))  # 打印原始内容长度
+        print('打印新内容长度',len(new_prompt.content))  # 打印新内容长度
+
         db.session.add(new_prompt)
         db.session.commit()
         return APIResponse.success({

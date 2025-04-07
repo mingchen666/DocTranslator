@@ -219,7 +219,7 @@ class TranslateListResource(Resource):
         else:
             return "其他"
 
-# 翻译设置
+# 获取翻译设置
 class TranslateSettingResource(Resource):
     @jwt_required()
     def get(self):
@@ -259,7 +259,7 @@ class TranslateSettingResource(Resource):
             elif setting.alias == 'api_url':
                 config['api_url'] = value
             elif setting.alias == 'api_key':
-                config['api_key'] = value
+                config['api_key'] = "sk-xxx" # value
             elif setting.alias == 'prompt':
                 config['prompt_template'] = value
             elif setting.alias == 'threads':

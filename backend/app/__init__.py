@@ -5,6 +5,7 @@ from .config import get_config
 from .extensions import init_extensions, db, api
 from .models.setting import Setting
 from .resources.task.translate_service import TranslateEngine
+from .script.insert_init_db import insert_initial_data
 from .utils.response import APIResponse
 
 
@@ -39,7 +40,7 @@ def create_app(config_class=None):
         # if not SystemSetting.query.filter_by(key='version').first():
         #     db.session.add(SystemSetting(key='version', value='business'))
         #     db.session.commit()
-
+    insert_initial_data(app)
     # 开发环境路由打印
     # if app.debug:
     #     with app.app_context():

@@ -212,12 +212,14 @@
                 <el-option value="both" label="原文+译文"></el-option>
             </el-select>
         </el-form-item> -->
-        <el-form-item label="术语" width="100%" v-if="editionInfo == 'business'">
+         <!-- v-if="editionInfo == 'business'" -->
+        <el-form-item label="术语" width="100%">
           <el-select
             v-model="form.comparison_id"
             placeholder="请选择术语"
             clearable
             filterable
+            @focus="comparison_id_focus($event)"
             :fit-input-width="true"
           >
             <el-option
@@ -228,12 +230,13 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="提示语" prop="prompt_id" width="100%" v-if="editionInfo != 'business'">
+        <el-form-item label="选择提示语" prop="prompt_id" width="100%">
           <el-select
             v-model="form.prompt_id"
             placeholder="请选择提示语"
             filterable
             @change="prompt_id_change($event)"
+            @focus="prompt_id_focus($event)"
             :fit-input-width="true"
           >
             <el-option
@@ -244,14 +247,14 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="提示语" prop="prompt" width="100%" v-else>
+        <el-form-item label="提示语" prop="prompt" width="100%">
           <el-input
             v-model="form.prompt"
             autosize
             type="textarea"
-            :rows="3"
+            :rows="4"
             resize="none"
-            placeholder="请输入系统翻译提示词"
+            placeholder="请输入翻译提示词"
           ></el-input>
         </el-form-item>
 
@@ -453,6 +456,7 @@ const form = ref({
   origin_lang: '', // 添加起始语言字段
   comparison_id: '', //术语id
   prompt_id: '', //提示语id
+  prompt_title: '',
   doc2x_flag: 'N',
   doc2x_secret_key: ''
 })
@@ -527,23 +531,24 @@ watch(
 )
 
 //更新提示语数据
-watch(
-  () => store.promptList,
-  (n, o) => {
-    promptData.value = n
-    if (form.value.prompt_id > 0) {
-      const obj = promptData.value.find((item) => item.id === form.value.prompt_id)
-      if (!obj) {
-        form.value.prompt_id = 0
-        form.value.prompt = store.prompt
-        localStorage.setItem('prompt', form.value.prompt)
-        localStorage.setItem('prompt_id', form.value.prompt_id)
-        //通知翻译主页面 更新form设置数值
-        $bus.emit('HeadForm', true)
-      }
-    }
-  }
-)
+// watch(
+//   () => store.promptList,
+//   (n, o) => {
+//     console.log('更新提示词');
+//     promptData.value = n
+//     if (form.value.prompt_id > 0) {
+//       const obj = promptData.value.find((item) => item.id === form.value.prompt_id)
+//       if (!obj) {
+//         form.value.prompt_id = 0
+//         form.value.prompt = store.prompt
+//         localStorage.setItem('prompt', form.value.prompt)
+//         localStorage.setItem('prompt_id', form.value.prompt_id)
+//         //通知翻译主页面 更新form设置数值
+//         $bus.emit('HeadForm', true)
+//       }
+//     }
+//   }
+// )
 
 //未登录打开登录弹窗
 $bus.on('shouldAuth', (param) => {
@@ -565,10 +570,47 @@ $bus.on('LangLimitVal', (param) => {
   }
 })
 
+// 获取提示语数据
+const getPromptList = async () => {
+  try {
+    const res = await prompt_my()
+    if (res.code === 200) {
+      // console.log(6666, res.data)
+      promptData.value = JSON.parse(JSON.stringify(res.data.data))
+      // 添加默认提示词
+      promptData.value.unshift({
+        id: 0,
+        title: '默认系统提示语',
+        created_at: '2025-04-07',
+        share_flag: 'Y',
+        content: `你是一个文档翻译助手，请将以下内容直接翻译成{target_lang}，不返回原文本。如果文本中包含{target_lang}文本、特殊名词（比如邮箱、品牌名、单位名词如mm、px、℃等）、无法翻译等特殊情况，请直接返回原词语而无需解释原因。遇到无法翻译的文本直接返回原内容。保留多余空格。`
+      })
+      // if (store.prompt) {
+      //   promptData.value.unshift({
+      //     title: '默认提示语(无法删除)',
+      //     content: store.prompt,
+      //     undelete: true
+      //   })
+      // }
+    }
+  } catch (error) {
+    console.error('获取提示语数据失败:', error)
+  }
+}
+
+// 术语表选择框聚焦---获取术语表
+const comparison_id_focus = () => {
+  getTermList()
+}
 //提示语选择框选择事件
 function prompt_id_change(e) {
   const obj = promptData.value.find((item) => item.id === e)
   form.value.prompt = obj.content
+}
+// 提示语输入框聚焦,获取提示词数据
+function prompt_id_focus() {
+  getPromptList()
+  // console.log('提示语数据', promptData.value)
 }
 
 //获取设置项信息
@@ -580,7 +622,7 @@ function getTranslateSetting() {
         form.value.api_url = setting.api_url
       }
       if (setting.api_key) {
-        form.value.api_key = setting.api_key
+        form.value.api_key = 'sk-xxxxx' //setting.api_key
       }
       models.value = setting.models
       form.value.model = setting.default_model
@@ -618,6 +660,9 @@ function getTranslateSetting() {
     if (localStorage.getItem('prompt')) {
       form.value.prompt = localStorage.getItem('prompt')
     }
+    // if (localStorage.getItem('prompt_id')) {
+    //   form.value.prompt_id = localStorage.getItem('prompt_id')
+    // }
     if (localStorage.getItem('threads')) {
       form.value.threads = localStorage.getItem('threads')
     }
@@ -633,34 +678,10 @@ function getTranslateSetting() {
 //获取术语表数据
 function getTermList() {
   comparison_my().then((data) => {
-    if (data.code == 0) {
+    if (data.code == 200) {
       termsData.value = data.data.data
       if (localStorage.getItem('comparison_id')) {
         form.value.comparison_id = Number(localStorage.getItem('comparison_id'))
-      }
-    }
-  })
-}
-
-//获取提示语数据
-function getPromptList() {
-  prompt_my().then((data) => {
-    if (data.code == 0) {
-      promptData.value = data.data.data
-      if (store.prompt) {
-        promptData.value.unshift({ title: '默认提示语', id: 0, content: store.prompt })
-        form.value.prompt_id = 0
-        form.value.prompt = store.prompt
-        if (localStorage.getItem('prompt_id')) {
-          form.value.prompt_id = Number(localStorage.getItem('prompt_id'))
-          const obj = promptData.value.find((item) => item.id === form.value.prompt_id)
-          if (obj) {
-            form.value.prompt = obj.content
-          } else {
-            form.value.prompt_id = 0
-            form.value.prompt = store.prompt
-          }
-        }
       }
     }
   })
@@ -724,6 +745,8 @@ function formConfim(transformRef) {
       $bus.emit('HeadForm', true)
     }
   })
+  // console.log('表单值',form.value);
+  
 }
 
 //检查功能实现

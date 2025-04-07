@@ -1,0 +1,34 @@
+node_modules/
+## 缓存文件
+.cache/
+## 环境变量文件
+# .env
+# .env.local
+# .env.*.local
+## 日志文件
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+## 编辑器配置
+.idea/
+.vscode/
+
+
+.DS_Store
+## 测试相关
+coverage/
+.nyc_output/
+## 其他
+*.log
+*.tmp
+*.swp
+
+## 虚拟环境
+venv/
+env/
+even/
+# 忽略所有 __pycache__ 文件夹
+**/__pycache__/
+*.py[cod]
+
+

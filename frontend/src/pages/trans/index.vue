@@ -160,6 +160,7 @@
               <span class="phone_show">语言:</span>
               {{ item.lang ? item.lang : '--' }}
             </div>
+            <!-- 操作 -->
             <div class="table_li" v-if="true">
               <template v-if="item.status == 'done'">
                 <el-link
@@ -170,7 +171,9 @@
                   <img src="@assets/icon_down.png" alt="" />
                 </el-link>
               </template>
+              <!-- 失败重试图标 -->
               <img v-else src="@assets/icon_no_down.png" alt="" />
+              <!-- 删除图标 -->
               <img
                 @click="delTransFile(item.id, index)"
                 src="@assets/icon_close.png"

@@ -1,1 +1,0 @@
-import{_ as s,y as o,b as n,d as t}from"./index-CsiOcfCR.js";const r={},a={class:"filing"};function c(_,e){return o(),n("div",a,e[0]||(e[0]=[t("p",null,"© 2025 DocTranslator. 保留所有权利",-1)]))}const l=s(r,[["render",c],["__scopeId","data-v-88720666"]]);export{l as F};
