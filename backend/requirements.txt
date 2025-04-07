@@ -27,6 +27,7 @@ pypdf==5.2.0
 pdfdeal==1.0.2
 pdfkit==1.0.0
 docx2pdf==0.1.8
+pandas==2.2.3
 
 # 图像处理
 opencv-python-headless>=4.10.0.84
