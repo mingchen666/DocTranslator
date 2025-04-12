@@ -1,5 +1,4 @@
 
-
 # 📄 DocTranslator - 文档 AI 翻译工具 🚀
 
 **DocTranslator** 文档翻译，支持多种文件格式的翻译，兼容 OpenAI 格式的 API，并支持批量操作和多线程处理。无论是个人用户还是企业团队，DocTranslator 都能帮助你高效完成文档翻译任务！✨
@@ -10,6 +9,7 @@
 
 [点击在线使用](https://demo.doctranslate.top) 
 
+[GPT中转站推荐-低价优惠-点击此处跳转](https://www.ezworkapi.com) 
 
 ---
 
@@ -110,7 +110,7 @@ pnpm dev
 
 ---
 
-## 🐳 Docker 部署（在线镜像beta版本）
+## 🐳 一、Docker 部署（在线镜像beta版本）
 
 ### 1. 创建 Docker 网络
 
@@ -149,7 +149,7 @@ docker run -d \
 - **管理端**：http://localhost:8081  
 - **后端 API**：http://localhost:5000 
 
-## 🐳 Docker 部署（自行构建镜像）
+## 🐳 二、Docker 部署（自行构建镜像）
 
 ### 1. 项目结构
 
@@ -216,6 +216,23 @@ docker run -d \
 
 ---
 
+## 🐳 三、Docker-Compose 部署（自行构建镜像）
+###  启动项目
+```shell
+cd DocTranslator
+docker-compose up -d
+```
+
+### 更新项目
+```shell
+cd /DocTranslator
+docker compose down
+git pull
+docker compose pull
+docker compose up -d
+```
+
+
 ## 💖 赞赏支持
 
 如果 DocTranslator 对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
@@ -225,7 +242,7 @@ docker run -d \
 
 ## 📢 交流群
 有任何问题想交流，欢迎加入我们的交流群
-<img src="docs/images/qq-group.png" alt="交流群" width="350">
+<img src="docs/images/qq-group.png" alt="交流群" width="300">
 
 ## 📝 使用指南
 

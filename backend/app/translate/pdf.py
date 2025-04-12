@@ -24,10 +24,8 @@ def clean_output_filename(original_path: Path, output_dir: str) -> Path:
         '.en.dual', '.en.mono',
         '.no_watermark.zh.mono', '.no_watermark.zh.dual',
         '.zh.dual', '.zh.mono',
-        *[f'.no_watermark.{lang}.mono' for lang in ['ja', 'fr', 'de', 'es']],
-        *[f'.no_watermark.{lang}.dual' for lang in ['ja', 'fr', 'de', 'es']],
-        *[f'.{lang}.mono' for lang in ['ja', 'fr', 'de', 'es']],
-        *[f'.{lang}.dual' for lang in ['ja', 'fr', 'de', 'es']]
+        '.no_watermark.zh.mono',
+        '.no_watermark.en.mono',
     ]:
         temp_path = Path(output_dir) / f"{stem}{suffix}{original_path.suffix}"
         if temp_path.exists():

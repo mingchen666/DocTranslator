@@ -6,7 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-
+from app.utils.jwt_utils import configure_jwt_callbacks
 
 # 初始化扩展实例
 
@@ -23,6 +23,8 @@ def init_extensions(app):
     db.init_app(app)
     api.init_app(app)
     jwt.init_app(app)
+    # 拦截jwt
+    configure_jwt_callbacks(jwt)
     mail.init_app(app)
     migrate.init_app(app, db)
     # 延迟初始化API（避免循环导入）
