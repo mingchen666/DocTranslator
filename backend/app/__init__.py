@@ -4,6 +4,7 @@ from .config import get_config
 from .extensions import init_extensions, db, api
 from .models.setting import Setting
 from .resources.task.translate_service import TranslateEngine
+from .script.init_db import safe_init_mysql
 from .script.insert_init_db import insert_initial_data, set_auto_increment
 from .utils.response import APIResponse
 
@@ -16,7 +17,8 @@ def create_app(config_class=None):
     if config_class is None:
         config_class = get_config()
     app.config.from_object(config_class)
-
+    # 初始化数据库
+    safe_init_mysql(app,'app/init.sql')
     # 初始化扩展（此时不注册路由）
     init_extensions(app)
     register_routes(api)
@@ -26,7 +28,7 @@ def create_app(config_class=None):
         return APIResponse.not_found()
 
     from jwt.exceptions import ExpiredSignatureError
-    # 401拦截
+
     @app.errorhandler(ExpiredSignatureError)
     def handle_expired_token_error(e):
         return jsonify({"message": "身份验证信息已过期，请重新登录"}), 401

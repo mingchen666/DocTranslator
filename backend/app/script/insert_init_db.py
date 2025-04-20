@@ -118,7 +118,7 @@ def set_auto_increment(app):
         dialect = db.engine.dialect.name
         # 检查 id 字段是否已经是自动递增
         if is_auto_increment("prompt_fav", "id"):
-            # print("✅ 'id' 字段已经自动递增（无需修改）")
+            print("✅ 'id' 字段已经自动递增（无需修改）")
             return
 
         if dialect == "mysql":
@@ -126,10 +126,10 @@ def set_auto_increment(app):
             try:
                 db.session.execute(text(sql))
                 db.session.commit()
-                # print("✅ 'id' 字段已设置为自动递增（MySQL）")
+                print("✅ 'id' 字段已设置为自动递增（MySQL）")
             except Exception as e:
                 db.session.rollback()
-                # print(f"❌ 设置自动递增失败: {e}")
+                print(f"❌ 设置自动递增失败: {e}")
         elif dialect == "sqlite":
             # SQLite 通过重建表的方式设置 id 字段为自动递增
             try:
@@ -153,7 +153,7 @@ def set_auto_increment(app):
                     connection.execute(text("DROP TABLE prompt_fav;"))
                     # 4. 重命名新表
                     connection.execute(text("ALTER TABLE prompt_fav_new RENAME TO prompt_fav;"))
-                # print("✅ 'id' 字段已设置为自动递增（SQLite）")
+                print("✅ 'id' 字段已设置为自动递增（SQLite）")
             except Exception as e:
                 print(f"❌ 设置自动递增失败: {e}")
         else:

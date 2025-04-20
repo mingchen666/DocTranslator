@@ -199,6 +199,7 @@ class FavoritePromptResource(Resource):
         db.session.commit()
         return APIResponse.success(message=f'{action}成功')
 
+
 # 创建新的提示语
 
 class CreatePromptResource(Resource):

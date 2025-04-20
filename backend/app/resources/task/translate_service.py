@@ -1,5 +1,4 @@
 import os
-import threading
 from datetime import datetime
 from threading import Thread
 from flask import current_app
@@ -8,9 +7,6 @@ from app.extensions import db
 from .main import main_wrapper
 from ...models.comparison import Comparison
 from ...models.prompt import Prompt
-
-
-
 import pytz
 
 # 时间修复
@@ -67,7 +63,7 @@ class TranslateEngine:
             trans_config = self._build_trans_config(task)
 
             # 调用 main_wrapper 执行翻译
-            return main_wrapper(task_id=task.id, origin_path=task.origin_filepath, config=trans_config)
+            return main_wrapper(task_id=task.id, config=trans_config,origin_path=task.origin_filepath)
         except Exception as e:
             current_app.logger.error(f"翻译执行失败: {str(e)}", exc_info=True)
             return False

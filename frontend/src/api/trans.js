@@ -43,7 +43,7 @@ export function transalteFile(params){
         data: params
     });
 }
-
+// 进度查询
 export function transalteProcess(params){
     return request({
         url: `/api/process`,
@@ -63,15 +63,7 @@ export function translates(params){
     });
 }
 
-/**
- * 获取翻译设置
- */
-export function translateSetting(){
-    return request({
-        url: '/api/translate/setting',
-        method: 'get',
-    });
-}
+
 
 export function delTranslate(id){
     return request({

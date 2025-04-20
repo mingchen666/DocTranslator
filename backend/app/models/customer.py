@@ -20,7 +20,8 @@ class Customer(db.Model):
     deleted_flag = db.Column(db.Enum('N', 'Y'), default='N')  # 删除标记
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 创建时间
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)  # 更新时间
-    storage = db.Column(db.BigInteger, default=0)  # 存储空间（字节）
+    storage = db.Column(db.BigInteger, default=0)  # 已使用的存储空间（字节）
+    total_storage = db.Column(db.BigInteger, default=104857600) # 默认100MB 总存储空间（字节）
 
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -38,6 +39,7 @@ class Customer(db.Model):
             'status': 'enabled' if self.deleted_flag == 'N'and self.status == 'enabled' else 'disabled',
             'level': self.level,
             'storage': int(self.storage),
+            'total_storage': int(self.total_storage),
             # 处理 Decimal
             'created_at': self.created_at.isoformat() if self.created_at else None,  # 注册时间
             'updated_at': self.updated_at.isoformat() if self.updated_at else None  # 更新时间

@@ -1,5 +1,6 @@
 import {reactive} from 'vue'
-
+// const pTitle = ref('')
+// const version = ref('')
 export const store=reactive({
     pTitle:"",
     token:localStorage.getItem("token") || '',

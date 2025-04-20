@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {store} from '@/store'
 import router from '@/router'
+import { useUserStore } from '@/store/user'
 import Qs from 'qs'
 // import router from '@/router'
 // import i18n from '@/lang/index' // i18n 国际化
@@ -33,7 +33,8 @@ const service = axios.create({
 // request interceptor
 service.interceptors.request.use(
   config => {
-    config.headers['token'] = store.token;
+    const userStore = useUserStore()
+    config.headers['token'] = userStore.token;
     config.headers['credentials']='include'
     config.headers['withCredentials']=true  // 携带凭据（如 Cookies）
       // config.headers['language'] = localStorage.getItem('language')||'zh';
@@ -69,7 +70,7 @@ service.interceptors.response.use(
           router.push('/login')
           break  
         case 403:
-          ElMessage.error('权限不足')
+          ElMessage.error('用户状态异常或权限不足!')
           break
         default:
           ElMessage.error('请求失败')

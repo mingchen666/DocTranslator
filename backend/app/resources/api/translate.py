@@ -2,7 +2,6 @@
 import json
 from pathlib import Path
 
-import pytz
 from flask import request, send_file, current_app, make_response
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -49,6 +48,8 @@ class TranslateStartResource(Resource):
             # 获取用户信息
             user_id = get_jwt_identity()
             customer = Customer.query.get(user_id)
+            if customer.status == 'disabled':
+                return APIResponse.error("用户状态异常", 403)
 
             # 生成绝对路径（跨平台兼容）
             def get_absolute_storage_path(filename):
@@ -80,6 +81,9 @@ class TranslateStartResource(Resource):
             translate.target_filepath = target_abs_path  # 存储翻译结果的绝对路径
             translate.lang = data['lang']
             translate.model = data['model']
+            translate.server = data['server']
+            translate.app_key = data.get('app_key', '')
+            translate.app_id = data.get('app_id', '')
             translate.backup_model = data['backup_model']
             translate.type = translate_type
             translate.prompt = data['prompt']
@@ -88,6 +92,7 @@ class TranslateStartResource(Resource):
             translate.api_key = data.get('api_key', '')
             translate.backup_model = data.get('backup_model', '')
             translate.origin_lang = data.get('origin_lang', '')
+            translate.size = data.get('size', 0)  # 更新文件大小
             # 获取 comparison_id 并转换为整数
             comparison_id = data.get('comparison_id', '0')  # 默认值为 '0'
             translate.comparison_id = int(comparison_id) if comparison_id else None
@@ -99,6 +104,8 @@ class TranslateStartResource(Resource):
             # current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
             # translate.created_at = current_time
             # 保存到数据库
+            # 更新用户已用存储空间
+            customer.storage += int(translate.size)
             db.session.commit()
             # with current_app.app_context():  # 确保在应用上下文中运行
             # 启动翻译引擎，传入 current_app
@@ -114,6 +121,7 @@ class TranslateStartResource(Resource):
             db.session.rollback()
             current_app.logger.error(f"翻译任务启动失败: {str(e)}", exc_info=True)
             return APIResponse.error("任务启动失败", 500)
+
 
 
 # 修复时间显示
@@ -190,7 +198,8 @@ class TranslateListResource(Resource):
                 'start_at': t.start_at.strftime('%Y-%m-%d %H:%M:%S') if t.start_at else "--",
                 # 开始时间
                 'lang': t.lang,
-                'target_filepath': t.target_filepath
+                'target_filepath': t.target_filepath,
+                'uuid': t.uuid
             })
 
         # 返回响应数据
@@ -218,6 +227,7 @@ class TranslateListResource(Resource):
             return "文本"
         else:
             return "其他"
+
 
 # 获取翻译设置
 class TranslateSettingResource(Resource):
@@ -259,7 +269,7 @@ class TranslateSettingResource(Resource):
             elif setting.alias == 'api_url':
                 config['api_url'] = value
             elif setting.alias == 'api_key':
-                config['api_key'] = "sk-xxx" # value
+                config['api_key'] = "sk-xxx"  # value
             elif setting.alias == 'prompt':
                 config['prompt_template'] = value
             elif setting.alias == 'threads':
@@ -275,6 +285,13 @@ class TranslateSettingResource(Resource):
         config.setdefault('max_threads', 10)
 
         return config
+
+
+class TranslateSettingResource66(Resource):
+    @jwt_required()
+    def get(self):
+        """获取翻译配置[^2]"""
+        return APIResponse.success(TRANSLATE_SETTINGS)
 
 
 class TranslateProcessResource(Resource):
@@ -299,17 +316,19 @@ class TranslateDeleteResource(Resource):
     def delete(self, id):
         """软删除翻译记录[^4]"""
         # 查询翻译记录
+        customer_id = get_jwt_identity()
         translate = Translate.query.filter_by(
             id=id,
-            customer_id=get_jwt_identity()
+            customer_id=customer_id
         ).first_or_404()
-
+        customer = Customer.query.get(customer_id)
         # 更新 deleted_flag 为 'Y'
         translate.deleted_flag = 'Y'
+        # 更新用户存储空间
+        customer.storage -= translate.size
         db.session.commit()
 
         return APIResponse.success(message='记录已标记为删除')
-
 
 
 class TranslateDownloadResource(Resource):
@@ -339,8 +358,6 @@ class TranslateDownloadResource(Resource):
         response.headers['Expires'] = '0'
 
         return response
-
-
 
 
 class TranslateDownloadAllResource(Resource):

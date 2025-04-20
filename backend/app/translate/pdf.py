@@ -18,6 +18,7 @@ def clean_output_filename(original_path: Path, output_dir: str) -> Path:
     stem = original_path.stem.split('.')[0]
     new_path = Path(output_dir) / f"{stem}{original_path.suffix}"
 
+    # 支持所有可能的输出文件名变体
     for suffix in [
         '.dual', '.mono',
         '.no_watermark.en.dual', '.no_watermark.en.mono',
@@ -50,6 +51,9 @@ async def async_translate_pdf(trans):
         # 初始化文档布局模型
         doc_layout_model = DocLayoutModel.load_onnx()
 
+        # 初始化表格模型（根据参数决定是否启用）
+        # table_model = RapidOCRModel() if trans.get('translate_table', False) else None
+
         # 创建翻译器实例
         translator = OpenAITranslator(
             lang_in="auto",
@@ -58,9 +62,11 @@ async def async_translate_pdf(trans):
             api_key=trans['api_key'],
             base_url=trans.get('api_url', 'https://api.openai.com/v1'),
             ignore_cache=False
+
         )
 
         # 完整翻译配置
+        # cons=PConfig()
         config = TranslationConfig(
             input_file=str(original_path),
             output_dir=str(trans['target_path_dir']),
@@ -72,6 +78,10 @@ async def async_translate_pdf(trans):
             min_text_length=5,
             pages=None,
             qps=3,
+            # translate_table_text=True,
+            # table_model=table_model,  # 传递表格模型
+            # translate_table_text=True,  # 表格翻译开关
+            # show_char_box=True, # 调试表格识别
             no_dual=True,  # 是否生成双语PDF
             no_mono=False,  # 是否生成单语PDF
         )
@@ -97,9 +107,9 @@ async def async_translate_pdf(trans):
                     )
 
                 # 计算token使用量
-                token_count = getattr(translator, 'token_count', 0)
-                prompt_tokens = getattr(translator, 'prompt_token_count', 0)
-                completion_tokens = getattr(translator, 'completion_token_count', 0)
+                # token_count = getattr(translator, 'token_count', 0)
+                # prompt_tokens = getattr(translator, 'prompt_token_count', 0)
+                # completion_tokens = getattr(translator, 'completion_token_count', 0)
 
                 # 触发完成回调
                 spend_time = (datetime.datetime.now() - start_time).total_seconds()
@@ -143,6 +153,7 @@ def start(trans):
 
         # 执行翻译
         success = translate_pdf(trans)
+
         if not success:
             raise RuntimeError("PDF翻译过程失败")
 

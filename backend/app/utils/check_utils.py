@@ -4,6 +4,7 @@ from io import BytesIO
 import fitz  # PyMuPDF
 import logging
 
+
 class AIChecker:
     @staticmethod
     def check_openai_connection(api_url: str, api_key: str, model: str, timeout: int = 10):

@@ -69,8 +69,9 @@ def format_file_path(filepath):
     parentpath=os.path.dirname(filepath)
     return "{}/{}".format(parentpath, filename)
 
+
 def convert_language_name_to_code(language_name):
-    """将中文语言名称转换为语言代码"""
+    """将中文语言名称转换为标准语言代码"""
     language_mapping = {
         '中文': 'zh',
         '英语': 'en',

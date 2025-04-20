@@ -45,6 +45,7 @@ def get(trans, event, texts, index):
             if oldtrans:
                 content = oldtrans['content']
                 # 特别处理PDF类型
+
             # elif extension == ".pdf":
             #     return handle_pdf(trans, event, texts, index)
             # elif extension == ".pdf":
@@ -148,128 +149,6 @@ def handle_pdf(trans, event, texts, index):
     except Exception as e:
         return use_backup_model(trans, event, texts, index, str(e))
 
-
-def get11(trans, event, texts, index):
-    if event.is_set():
-        exit(0)
-    threads = trans['threads']
-    if threads is None or threads == "" or int(threads) < 0:
-        max_threads = 10
-    else:
-        max_threads = int(threads)
-    # mredis=rediscon.get_conn()
-    # threading_num=get_threading_num(mredis)
-    # while threading_num>=max_threads:
-    #    time.sleep(1)
-    print('trans配置项', trans)
-    translate_id = trans['id']
-    target_lang = trans['lang']
-    model = trans['model']
-    backup_model = trans['backup_model']
-    prompt = trans['prompt']
-    extension = trans['extension'].lower()
-    text = texts[index]
-    api_key = trans['api_key']
-    api_url = trans['api_url']
-    old_text = text['text']
-    md5_key = md5_encryption(
-        str(api_key) + str(api_url) + str(old_text) + str(prompt) + str(backup_model) + str(
-            model) + str(target_lang))
-    try:
-        oldtrans = db.get("select * from translate_logs where md5_key=%s", md5_key)
-        # mredis.set("threading_count",threading_num+1)
-        if text['complete'] == False:
-            content = ''
-            if oldtrans:
-                content = oldtrans['content']
-            elif extension == ".pdf":
-                if text['type'] == "text":
-                    content = translate_html(text['text'], target_lang, model, prompt)
-                    time.sleep(0.1)
-                else:
-                    content = get_content_by_image(text['text'], target_lang)
-                    time.sleep(0.1)
-            # ---------------这里实现不同模型格式的请求--------------
-            elif extension == ".md":
-                content = req(text['text'], target_lang, model, prompt, True)
-            else:
-                content = req(text['text'], target_lang, model, prompt, False)
-                # print("content", text['content'])
-            text['count'] = count_text(text['text'])
-            if check_translated(content):
-                # 过滤deepseek思考过程
-                text['text'] = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
-                if oldtrans is None:
-                    db.execute("INSERT INTO translate_logs set api_url=%s,api_key=%s,"
-                               + "backup_model=%s ,created_at=%s ,prompt=%s,  "
-                               + "model=%s,target_lang=%s,source=%s,content=%s,md5_key=%s",
-                               str(api_url), str(api_key),
-                               str(backup_model),
-                               datetime.datetime.now(), str(prompt), str(model), str(target_lang),
-                               str(old_text),
-                               str(content), str(md5_key))
-            text['complete'] = True
-    except openai.AuthenticationError as e:
-        # set_threading_num(mredis)
-        return use_backup_model(trans, event, texts, index, "openai密钥或令牌无效")
-    except openai.APIConnectionError as e:
-        # set_threading_num(mredis)
-        return use_backup_model(trans, event, texts, index, "请求无法与openai服务器或建立安全连接")
-    except openai.PermissionDeniedError as e:
-        # set_threading_num(mredis)
-        texts[index] = text
-        # return use_backup_model(trans, event, texts, index, "令牌额度不足")
-    except openai.RateLimitError as e:
-        # set_threading_num(mredis)
-        if "retry" not in text:
-            trans['model'] = backup_model
-            trans['backup_model'] = model
-            time.sleep(1)
-            print("访问速率达到限制,交换备用模型与模型重新重试")
-            get(trans, event, texts, index)
-        else:
-            return use_backup_model(trans, event, texts, index,
-                                    "访问速率达到限制,10分钟后再试" + str(text['text']))
-    except openai.InternalServerError as e:
-        # set_threading_num(mredis)
-        if "retry" not in text:
-            trans['model'] = backup_model
-            trans['backup_model'] = model
-            time.sleep(1)
-            print("当前分组上游负载已饱和，交换备用模型与模型重新重试")
-            get(trans, event, texts, index)
-        else:
-            return use_backup_model(trans, event, texts, index,
-                                    "当前分组上游负载已饱和，请稍后再试" + str(text['text']))
-    except openai.APIStatusError as e:
-        # set_threading_num(mredis)
-        return use_backup_model(trans, event, texts, index, e.response)
-    except Exception as e:
-        # set_threading_num(mredis)
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        line_number = exc_traceback.tb_lineno  # 异常抛出的具体行号
-        print(f"Error occurred on line: {line_number}")
-        print(e)
-        if "retry" not in text:
-            text["retry"] = 0
-        text["retry"] += 1
-        if text["retry"] <= 3:
-            trans['model'] = backup_model
-            trans['backup_model'] = model
-            print("当前模型执行异常，交换备用模型与模型重新重试")
-            time.sleep(1)
-            get(trans, event, texts, index)
-            return
-        else:
-            text['complete'] = True
-        # traceback.print_exc()
-        # print("translate error")
-    texts[index] = text
-    # print(text)
-    if not event.is_set():
-        process(texts, translate_id)
-    # set_threading_num(mredis)
-    exit(0)
 
 
 # def get_threading_num(mredis):

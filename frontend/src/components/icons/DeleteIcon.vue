@@ -1,0 +1,44 @@
+<template>
+  <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M9 10V44H39V10H9Z"
+      fill="none"
+      stroke="#f80000"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M20 20V33"
+      stroke="#f80000"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M28 20V33"
+      stroke="#f80000"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M4 10H44"
+      stroke="#f80000"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M16 10L19.289 4H28.7771L32 10H16Z"
+      fill="none"
+      stroke="#f80000"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+  </svg>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+</script>
+<style scoped></style>

@@ -1,5 +1,5 @@
-# utils/response.py
 from flask import jsonify
+
 
 class APIResponse:
     @staticmethod
@@ -28,7 +28,8 @@ class APIResponse:
     def unauthorized(cls, message='身份验证失败'):
         return cls.error(message=message, code=401)
 
-#========== utils/responses.py ==========
+
+# ========== utils/responses.py ==========
 class APIResponse1111:
     @staticmethod
     def success(data=None, message='操作成功', code=200):

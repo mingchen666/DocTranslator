@@ -40,7 +40,10 @@ class Translate(db.Model):
     doc2x_secret_key = db.Column(db.String(32))                     # 转换密钥
     prompt_id = db.Column(db.BigInteger, default=0)                 # 提示词ID
     comparison_id = db.Column(db.BigInteger, default=0)             # 对照表ID
-
+    size = db.Column(db.BigInteger, default=0) # 文件大小 字节
+    server= db.Column(db.String(32), default='openai')
+    app_id = db.Column(db.String(64), default='')
+    app_key = db.Column(db.String(64), default='')
     def to_dict(self):
         return {
             'id': self.id,

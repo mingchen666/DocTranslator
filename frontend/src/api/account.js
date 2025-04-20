@@ -30,12 +30,3 @@ export function authInfo() {
 }
 
 
-/**
- * 获取环境配置信息
- */
-export function getSetting() {
-  return request({
-      url: '/api/common/setting',
-      method: 'GET',
-  });
-}

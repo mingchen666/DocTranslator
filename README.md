@@ -37,7 +37,7 @@
 
 - **前端**：Vue 3 + Vite  
 - **后端**：Python + Flask+MySQL/SQLite  
-- **AI 翻译**：兼容 OpenAI 格式的 API  
+- **AI 翻译**：兼容 OpenAI 格式 
 - **部署**：Docker + Nginx  
 
 ---
@@ -235,7 +235,7 @@ docker compose up -d
 
 ## 💖 赞赏支持
 
-如果 DocTranslator 对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
+维护此项目需要耗费大量精力，如果DocTranslator对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
 🎉 **赞赏码**：  
 <img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="赞赏码" width="300">
 ---
@@ -244,13 +244,6 @@ docker compose up -d
 有任何问题想交流，欢迎加入我们的交流群
 <img src="docs/images/qq-group.png" alt="交流群" width="300">
 
-## 📝 使用指南
-
-1. **上传文档**：在前端页面选择需要翻译的文档并上传。
-2. **选择翻译语言**：设置目标语言并开始翻译。
-3. **查看结果**：翻译完成后，下载翻译后的文档。
-
----
 
 ## 🤝 贡献指南
 

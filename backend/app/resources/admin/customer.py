@@ -27,7 +27,6 @@ class AdminCustomerListResource(Resource):
 
         pagination = query.paginate(page=args['page'], per_page=args['limit'], error_out=False)
         customers = [c.to_dict() for c in pagination.items]
-        print(customers)
         return APIResponse.success({
             'data': customers,
             'total': pagination.total
@@ -105,7 +104,8 @@ class AdminCustomerDetailResource(Resource):
             'status': 'active' if customer.deleted_flag == 'N' else 'deleted',
             'level': customer.level,
             'created_at': customer.created_at.isoformat(),
-            'storage': customer.storage
+            'storage': customer.storage,
+            'total_storage': customer.total_storage,
         })
 
 
@@ -117,8 +117,7 @@ class AdminUpdateCustomerResource(Resource):
         customer = Customer.query.get_or_404(id)
         data = request.json
 
-        if 'email' in data and Customer.query.filter(Customer.email == data['email'],
-                                                     Customer.id != id).first():
+        if 'email' in data and Customer.query.filter(Customer.email == data['email'],Customer.id != id).first():
             return APIResponse.error('邮箱已被使用', 400)
 
         if 'name' in data:
@@ -128,7 +127,7 @@ class AdminUpdateCustomerResource(Resource):
         if 'level' in data:
             customer.level = data['level']
         if 'add_storage' in data:
-            customer.storage = customer.storage-int(data['add_storage'])*1024*1024
+            customer.total_storage += int(data['add_storage']) * 1024 * 1024
         db.session.commit()
         return APIResponse.success(message='用户信息更新成功')
 

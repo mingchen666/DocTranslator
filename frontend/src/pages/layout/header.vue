@@ -2,22 +2,20 @@
   <div class="page-header">
     <div class="head-box">
       <div class="logo">
-        <img src="@/assets/logo.png" class="logo_img" alt="EZ-work" />
-        <span>{{ store.pTitle }}</span>
-        <a class="btn_return" href="https://www.ehemart.com/" v-if="editionInfo == 'community'"
-          ><<返回官网</a
-        >
+        <img src="@/assets/logo.png" class="logo_img" alt="DocTranslator" />
+        <span>{{ settingsStore.siteTitle }}</span>
+        <a class="btn_return" href="https://www.ehemart.com/" v-if="false"><<返回官网</a>
         <img
           class="icon_vip phone_show"
           style="height: 16px; margin-left: 10px"
-          v-if="store.level == 'vip'"
+          v-if="false"
           src="@/assets/vip.png"
           alt=""
         />
       </div>
-      <!-- 社区版 -->
-      <div class="btn-box" v-if="editionInfo == 'business'">
-        <template v-if="store.token">
+      <!-- 导航菜单 -->
+      <div class="btn-box">
+        <template v-if="userStore.token">
           <div class="flex-center">
             <div class="btn_set" @click="funOpenHome">
               <div class="icon_svg"><svg-icon icon-class="home" /></div>
@@ -31,6 +29,17 @@
               <div class="icon_svg"><svg-icon icon-class="setting" /></div>
               <span class="pc_show">翻译设置</span>
             </div>
+            <div
+              class="btn_set"
+              @click="windowOpen('https://github.com/mingchen666/DocTranslator')"
+            >
+              <div class="icon_svg"><svg-icon icon-class="github" /></div>
+              <span class="pc_show">Github</span>
+            </div>
+            <!-- <div class="btn_set" @click="windowOpen('https://support.qq.com/product/670074')">
+              <div class="icon_svg"><svg-icon icon-class="question" /></div>
+              <span class="pc_show">问题反馈</span>
+            </div> -->
             <img
               class="icon_vip pc_show"
               v-if="store.level == 'vip'"
@@ -41,7 +50,7 @@
               <template #default>
                 <div>
                   <el-button class="pc_show">
-                    <div class="username" :title="store.username">{{ store.username }}</div>
+                    <div class="username">{{ userStore.userInfo.email }}</div>
                     <el-icon class="el-icon--right"><arrow-down /></el-icon>
                   </el-button>
                   <div class="phone_show icon_more">
@@ -52,6 +61,7 @@
 
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item command="profile">个人中心</el-dropdown-item>
                   <el-dropdown-item command="pwd">修改密码</el-dropdown-item>
                   <el-dropdown-item command="exit">退出</el-dropdown-item>
                 </el-dropdown-menu>
@@ -63,28 +73,6 @@
           <el-button class="pc_show" @click="$router.push('/login')">登录/注册</el-button>
           <el-icon class="phone_show icon_user" @click="$router.push('/login')"><User /></el-icon>
         </template>
-      </div>
-      <!-- 演示版 -->
-      <div class="btn-box" v-if="editionInfo == 'community'">
-        <div class="flex-center">
-          <div class="btn_set" @click="funOpenSet">
-            <div class="icon_svg"><svg-icon icon-class="setting" /></div>
-            <span class="pc_show">翻译设置</span>
-          </div>
-          <div
-            class="btn_set"
-            @click="
-              windowOpen('https://github.com/EHEWON/ezwork-ai-doc-translation?tab=readme-ov-file')
-            "
-          >
-            <div class="icon_svg"><svg-icon icon-class="github" /></div>
-            <span class="pc_show">Github</span>
-          </div>
-          <div class="btn_set" @click="windowOpen('https://support.qq.com/product/670074')">
-            <div class="icon_svg"><svg-icon icon-class="question" /></div>
-            <span class="pc_show">问题反馈</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -114,236 +102,30 @@
       </div>
     </el-dialog>
 
-    <!-- 翻译设置弹窗 pc -->
-    <el-dialog
-      v-model="formSetShow"
-      title="翻译设置"
-      width="90%"
-      modal-class="setting_dialog"
-      @close="formCancel"
-    >
-      <el-form ref="transformRef" :model="form" label-width="100px" :rules="rules">
-        <el-form-item label="服务商" required prop="server" width="100%">
-          <el-select v-model="form.server" placeholder="请选择服务商" disabled @change="saveValue">
-            <el-option value="openai" label="OpenAI"></el-option>
-            <el-option value="member" label="EZ-work 会员"></el-option>
-          </el-select>
-        </el-form-item>
-        <template v-if="form.server == 'openai'">
-          <el-form-item label="接口地址" required prop="api_url" width="100%">
-            <el-input v-model="form.api_url" placeholder="请输入接口（base_url）地址"></el-input>
-          </el-form-item>
-          <el-form-item label="API Key" required prop="api_key" width="100%">
-            <el-input v-model="form.api_key" placeholder="请输入OpenAI的API KEY" show-password
-              >></el-input
-            >
-          </el-form-item>
-        </template>
-        <el-form-item label="模型" required prop="model" width="100%">
-          <el-select
-            v-model="form.model"
-            placeholder="请选择或自定义OpenAI模型"
-            clearable
-            filterable
-            allow-create
-          >
-            <el-option
-              v-for="model in models"
-              :key="model"
-              :name="model"
-              :value="model"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="备用模型" prop="backup_model" width="100%">
-          <el-select
-            v-model="form.backup_model"
-            placeholder="备用模型在翻译模型不可用时自动切换并继续完成翻译。"
-            clearable
-            filterable
-            allow-create
-          >
-            <el-option
-              v-for="model in models"
-              :disabled="form.model == model ? true : false"
-              :key="model"
-              :name="model"
-              :value="model"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="翻译语言" required prop="langs" width="100%">
-          <div class="language-selection">
-            <!--<template v-if="form.scanned">
-              <el-select v-model="form.origin_lang" placeholder="请选择起始语言" class="lang-select">
-                <el-option v-for="lang in languageOptions" :key="lang.value" :label="lang.label" :value="lang.value"></el-option>
-              </el-select>
-              <div class="conversion-symbol">→</div>
-            </template>-->
-            <el-select
-              v-model="form.langs"
-              placeholder="请选择或自定义翻译语言"
-              clearable
-              filterable
-              allow-create
-              :multiple="langMultiSelected"
-              :multiple-limit="langMultipleLimit"
-              class="lang-select"
-            >
-              <el-option v-for="lang in langs" :key="lang" :name="lang" :value="lang"></el-option>
-            </el-select>
-          </div>
-        </el-form-item>
-        <el-form-item label="译文形式" required prop="type" width="100%">
-          <el-cascader
-            class="type-cascader"
-            placeholder="请选择译文形式"
-            v-model="form.type"
-            :options="types"
-            clearable
-            :props="{ expandTrigger: 'hover' }"
-            style="width: 100%"
-          >
-          </el-cascader>
-        </el-form-item>
-        <!-- <el-form-item label="译文形式" required prop="type">
-            <el-select v-model="form.type" placeholder="请选择译文形式">
-                <el-option value="translation" label="仅译文"></el-option>
-                <el-option value="both" label="原文+译文"></el-option>
-            </el-select>
-        </el-form-item> -->
-         <!-- v-if="editionInfo == 'business'" -->
-        <el-form-item label="术语" width="100%">
-          <el-select
-            v-model="form.comparison_id"
-            placeholder="请选择术语"
-            clearable
-            filterable
-            @focus="comparison_id_focus($event)"
-            :fit-input-width="true"
-          >
-            <el-option
-              v-for="item in termsData"
-              :key="item.id"
-              :value="item.id"
-              :label="item.title"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="选择提示语" prop="prompt_id" width="100%">
-          <el-select
-            v-model="form.prompt_id"
-            placeholder="请选择提示语"
-            filterable
-            @change="prompt_id_change($event)"
-            @focus="prompt_id_focus($event)"
-            :fit-input-width="true"
-          >
-            <el-option
-              v-for="item in promptData"
-              :key="item.id"
-              :value="item.id"
-              :label="item.title"
-            ></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="提示语" prop="prompt" width="100%">
-          <el-input
-            v-model="form.prompt"
-            autosize
-            type="textarea"
-            :rows="4"
-            resize="none"
-            placeholder="请输入翻译提示词"
-          ></el-input>
-        </el-form-item>
-
-        <el-form-item label="线程数" required prop="threads" width="100%">
-          <el-input-number
-            style="width: 100%"
-            :min="10"
-            :max="40"
-            v-model="form.threads"
-            :controls="false"
-            placeholder="注意：高线程≥10虽可以缩短翻译时长，但服务器负载较高，易引发异常，请谨慎使用！"
-          ></el-input-number>
-        </el-form-item>
-
-        <el-form-item label="Doc2x" required prop="threads" width="100%" style="margin-bottom: 0px">
-          <el-radio-group v-model="form.doc2x_flag">
-            <el-radio value="N" size="large">不启用</el-radio>
-            <el-radio value="Y" size="large">启用</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          label=" "
-          prop="doc2x_secret_key"
-          width="100%"
-          v-if="form.doc2x_flag == 'Y'"
-          class="no_label"
-        >
-          <div class="flex_box">
-            <el-input v-model="form.doc2x_secret_key" placeholder="请输入Doc2x的API KEY"></el-input>
-            <el-button :disabled="docx2_loading" :loading="docx2_loading" @click="docx2_check">{{
-              docx2_title
-            }}</el-button>
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="btn_box">
-          <div class="btn_check">
-            <el-button class="custom_btn" type="primary" @click="check" :loading="checking">
-              <div class="flex_box"><img src="@/assets/warn.png" alt="" />检查</div>
-            </el-button>
-            <el-tag v-if="check_text && check_text == 'success'" type="success">成功</el-tag>
-            <el-tag v-if="check_text && check_text == 'fail'" type="danger">失败</el-tag>
-          </div>
-          <el-button @click="formReset">重置设置</el-button>
-          <el-button type="primary" color="#055CF9" @click="formConfim(transformRef)"
-            >确认</el-button
-          >
-        </div>
-      </template>
-    </el-dialog>
+    <!-- 翻译设置组件 -->
+    <translation-settings ref="translationSettings" />
   </div>
 </template>
 <script setup>
 import { useRouter } from 'vue-router'
 import { store } from '@/store/index'
-import { authInfo, getSetting } from '@/api/account'
-import { translateSetting, checkOpenAI, checkDocx } from '@/api/trans'
-import { comparison_my, prompt_my } from '@/api/corpus'
-import { ref, computed, watch, defineProps, onMounted } from 'vue'
+import { useUserStore } from '@/store/user'
+import { useSettingsStore } from '@/store/settings'
+import { useTranslateStore } from '@/store/translate'
+import { authInfo } from '@/api/account'
+import { ref, computed, onMounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon/index.vue'
-import $bus from '@/bus'
-import { ElMessage, ElMessageBox } from 'element-plus'
-store.setTitle('DocTranslator AI文档翻译')
+import TranslationSettings from '@/components/TranslationSettings.vue'
+import { getSystemSetting, getTranslateSetting } from '@/api/settings'
+const userStore = useUserStore()
+const translationSettings = ref(null)
+const settingsStore = useSettingsStore()
+const translateStore = useTranslateStore()
 const router = useRouter()
-const props = defineProps({
-  title: String,
-  authDialog: Boolean
-})
+
 const logoutVisible = ref(false)
-const editionInfo = ref(false)
-
-//翻译设置 相关代码提炼
-const formSetShow = ref(false)
-const translatesSettingData = ref({})
-const checking = ref(false)
-const check_text = ref('')
-const transformRef = ref(null)
-const langMultiSelected = ref(true)
 const langMultipleLimit = ref(5)
-//新增术语、提示语
-const termsData = ref([])
-const promptData = ref([])
 
-//检查docx2
-const docx2_title = ref('检查')
-const docx2_loading = ref(false)
-
-const models = ref([])
 const types = [
   {
     value: 'trans_text',
@@ -415,29 +197,17 @@ const types = [
   }
 ]
 
-const langs = ['中文', '英语', '日语', '俄语', '阿拉伯语', '西班牙语']
-// 定义语言映射
-const languageMap = {
-  chi_sim: '中文（简体）',
-  chi_tra: '中文（繁体）',
-  eng: '英语',
-  jpn: '日语',
-  kor: '韩语',
-  fra: '法语',
-  spa: '西班牙语',
-  rus: '俄语',
-  ara: '阿拉伯语',
-  deu: '德语'
-  // ... 添加更多 Tesseract 支持的语言
+// 获取用户信息
+const getUserInfo = async () => {
+  try {
+    const res = await authInfo()
+    if (res.code === 200) {
+      userStore.updateUserInfo(res.data)
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
 }
-
-// 创建语言选项数组
-const languageOptions = computed(() => {
-  return Object.entries(languageMap).map(([value, label]) => ({
-    value,
-    label
-  }))
-})
 
 const form = ref({
   server: store.level == 'vip' ? 'member' : 'openai',
@@ -489,327 +259,6 @@ const rules = {
   ]
 }
 
-onMounted(() => {
-  getSetting().then((data) => {
-    editionInfo.value = data.data.version
-    store.setVersion(editionInfo.value)
-    if (data.data.version == 'business') {
-      authInfo().then((data) => {
-        store.setUsername(data.data.email)
-        store.setLevel(data.data.level)
-        getTranslateSetting()
-      })
-    } else {
-      getTranslateSetting()
-    }
-  })
-})
-
-//监听用户自动登录
-watch(
-  () => store.token,
-  (n, o) => {
-    getTranslateSetting()
-  }
-)
-
-//更新术语数据
-watch(
-  () => store.comparisonList,
-  (n, o) => {
-    termsData.value = n
-    if (form.value.comparison_id) {
-      const obj = termsData.value.find((item) => item.id === form.value.comparison_id)
-      if (!obj) {
-        form.value.comparison_id = ''
-        localStorage.setItem('comparison_id', form.value.comparison_id)
-        //通知翻译主页面 更新form设置数值
-        $bus.emit('HeadForm', true)
-      }
-    }
-  }
-)
-
-//更新提示语数据
-// watch(
-//   () => store.promptList,
-//   (n, o) => {
-//     console.log('更新提示词');
-//     promptData.value = n
-//     if (form.value.prompt_id > 0) {
-//       const obj = promptData.value.find((item) => item.id === form.value.prompt_id)
-//       if (!obj) {
-//         form.value.prompt_id = 0
-//         form.value.prompt = store.prompt
-//         localStorage.setItem('prompt', form.value.prompt)
-//         localStorage.setItem('prompt_id', form.value.prompt_id)
-//         //通知翻译主页面 更新form设置数值
-//         $bus.emit('HeadForm', true)
-//       }
-//     }
-//   }
-// )
-
-//未登录打开登录弹窗
-$bus.on('shouldAuth', (param) => {
-  authVisible.value = param
-})
-
-//打开翻译设置
-$bus.on('openTransSet', (param) => {
-  funOpenSet()
-})
-
-//监听翻译设置
-$bus.on('LangLimitVal', (param) => {
-  langMultipleLimit.value = param
-  if (param == 1) {
-    if (form.value.langs.length > 1) {
-      form.value.langs = []
-    }
-  }
-})
-
-// 获取提示语数据
-const getPromptList = async () => {
-  try {
-    const res = await prompt_my()
-    if (res.code === 200) {
-      // console.log(6666, res.data)
-      promptData.value = JSON.parse(JSON.stringify(res.data.data))
-      // 添加默认提示词
-      promptData.value.unshift({
-        id: 0,
-        title: '默认系统提示语',
-        created_at: '2025-04-07',
-        share_flag: 'Y',
-        content: `你是一个文档翻译助手，请将以下内容直接翻译成{target_lang}，不返回原文本。如果文本中包含{target_lang}文本、特殊名词（比如邮箱、品牌名、单位名词如mm、px、℃等）、无法翻译等特殊情况，请直接返回原词语而无需解释原因。遇到无法翻译的文本直接返回原内容。保留多余空格。`
-      })
-      // if (store.prompt) {
-      //   promptData.value.unshift({
-      //     title: '默认提示语(无法删除)',
-      //     content: store.prompt,
-      //     undelete: true
-      //   })
-      // }
-    }
-  } catch (error) {
-    console.error('获取提示语数据失败:', error)
-  }
-}
-
-// 术语表选择框聚焦---获取术语表
-const comparison_id_focus = () => {
-  getTermList()
-}
-//提示语选择框选择事件
-function prompt_id_change(e) {
-  const obj = promptData.value.find((item) => item.id === e)
-  form.value.prompt = obj.content
-}
-// 提示语输入框聚焦,获取提示词数据
-function prompt_id_focus() {
-  getPromptList()
-  // console.log('提示语数据', promptData.value)
-}
-
-//获取设置项信息
-function getTranslateSetting() {
-  translateSetting().then((data) => {
-    if (data.code == 200) {
-      let setting = data.data
-      if (setting.api_url) {
-        form.value.api_url = setting.api_url
-      }
-      if (setting.api_key) {
-        form.value.api_key = 'sk-xxxxx' //setting.api_key
-      }
-      models.value = setting.models
-      form.value.model = setting.default_model
-      form.value.backup_model = setting.default_backup
-      form.value.prompt = setting.prompt_template
-      form.value.threads = setting.threads
-      translatesSettingData.value = setting
-
-      store.setPrompt(setting.prompt)
-
-      //社区版获取术语列表
-      if (editionInfo.value == 'business') {
-        getTermList()
-        getPromptList()
-      }
-    }
-    if (localStorage.getItem('api_url')) {
-      form.value.api_url = localStorage.getItem('api_url')
-    }
-    if (localStorage.getItem('api_key')) {
-      form.value.api_key = localStorage.getItem('api_key')
-    }
-    if (localStorage.getItem('model')) {
-      form.value.model = localStorage.getItem('model')
-    }
-    if (localStorage.getItem('backup_model')) {
-      form.value.backup_model = localStorage.getItem('backup_model')
-    }
-    if (localStorage.getItem('langs')) {
-      form.value.langs = JSON.parse(localStorage.getItem('langs'))
-    }
-    if (localStorage.getItem('type')) {
-      form.value.type = JSON.parse(localStorage.getItem('type'))
-    }
-    if (localStorage.getItem('prompt')) {
-      form.value.prompt = localStorage.getItem('prompt')
-    }
-    // if (localStorage.getItem('prompt_id')) {
-    //   form.value.prompt_id = localStorage.getItem('prompt_id')
-    // }
-    if (localStorage.getItem('threads')) {
-      form.value.threads = localStorage.getItem('threads')
-    }
-    if (localStorage.getItem('doc2x_flag')) {
-      form.value.doc2x_flag = localStorage.getItem('doc2x_flag')
-    }
-    if (localStorage.getItem('doc2x_secret_key')) {
-      form.value.doc2x_secret_key = localStorage.getItem('doc2x_secret_key')
-    }
-  })
-}
-
-//获取术语表数据
-function getTermList() {
-  comparison_my().then((data) => {
-    if (data.code == 200) {
-      termsData.value = data.data.data
-      if (localStorage.getItem('comparison_id')) {
-        form.value.comparison_id = Number(localStorage.getItem('comparison_id'))
-      }
-    }
-  })
-}
-
-//翻译设置取消
-function formCancel() {
-  formSetShow.value = false
-}
-//翻译重置
-function formReset() {
-  let setting = translatesSettingData.value
-  if (setting.api_url) {
-    form.value.api_url = setting.api_url
-  } else {
-    form.value.api_url = 'https://api.openai.com'
-  }
-  if (setting.api_key) {
-    form.value.api_key = setting.api_key
-  } else {
-    form.value.api_key = ''
-  }
-  form.value.model = setting.default_model
-  form.value.backup_model = setting.default_backup
-  form.value.prompt = setting.prompt
-  form.value.threads = setting.threads
-  form.value.prompt_id = 0
-  form.value.comparison_id = ''
-  form.value.doc2x_flag = 'N'
-  form.value.doc2x_secret_key = ''
-
-  //清空以下数据
-  form.value.langs = []
-  form.value.type = []
-}
-
-//翻译设置确认
-function formConfim(transformRef) {
-  transformRef.validate((valid, messages) => {
-    if (valid) {
-      //确认
-      localStorage.setItem('api_url', form.value.api_url)
-      localStorage.setItem('api_key', form.value.api_key)
-      //模型
-      localStorage.setItem('model', form.value.model)
-      //备用
-      localStorage.setItem('backup_model', form.value.backup_model)
-      //翻译语言
-      localStorage.setItem('langs', JSON.stringify(form.value.langs))
-      //译文形式
-      localStorage.setItem('type', JSON.stringify(form.value.type))
-      localStorage.setItem('prompt', form.value.prompt)
-      localStorage.setItem('threads', form.value.threads)
-      localStorage.setItem('comparison_id', form.value.comparison_id)
-      localStorage.setItem('prompt_id', form.value.prompt_id)
-      localStorage.setItem('doc2x_flag', form.value.doc2x_flag)
-      localStorage.setItem('doc2x_secret_key', form.value.doc2x_secret_key)
-
-      formSetShow.value = false
-      //通知翻译主页面 更新form设置数值
-      $bus.emit('HeadForm', true)
-    }
-  })
-  // console.log('表单值',form.value);
-  
-}
-
-//检查功能实现
-function check() {
-  checking.value = true
-  check_text.value = ''
-  checkOpenAI(form.value)
-    .then((data) => {
-      checking.value = false
-      if (data.code == 200) {
-        check_text.value = 'success'
-      } else {
-        check_text.value = 'fail'
-        ElMessage({
-          message: data.message,
-          type: 'error'
-        })
-      }
-    })
-    .catch((err) => {
-      checking.value = false
-      check_text.value = 'fail'
-      ElMessage({
-        message: '接口异常',
-        type: 'error'
-      })
-    })
-}
-
-function docx2_check() {
-  docx2_loading.value = true
-  let _prarms = {
-    doc2x_secret_key: form.value.doc2x_secret_key
-  }
-  checkDocx(_prarms)
-    .then((data) => {
-      docx2_loading.value = false
-      if (data.code == 0) {
-        docx2_title.value = '成功'
-      } else if (data.code == 1) {
-        docx2_title.value = '失败'
-        ElMessage({
-          message: 'key值无效',
-          type: 'error'
-        })
-      } else {
-        docx2_title.value = '失败'
-        ElMessage({
-          message: data.message,
-          type: 'error'
-        })
-      }
-    })
-    .catch((err) => {
-      docx2_loading.value = false
-      docx2_title.value = '失败'
-      ElMessage({
-        message: '接口异常',
-        type: 'error'
-      })
-    })
-}
-
 //用户操作
 function user_action(command) {
   if (command == 'pwd') {
@@ -818,15 +267,15 @@ function user_action(command) {
   if (command == 'exit') {
     logoutVisible.value = !logoutVisible.value
   }
+  if (command == 'profile') {
+    router.push('/profile')
+  }
 }
 
-function menuSelect(index) {
-  activeIndex.value = index
-}
-
-//打开设置弹窗
+//打开翻译设置弹窗
 function funOpenSet() {
-  formSetShow.value = true
+  translationSettings.value.open()
+  // formSetShow.value = true
 }
 
 //打开语料库
@@ -844,17 +293,33 @@ function windowOpen(url) {
   window.open(url)
 }
 
-function goToLogin() {
-  router.push('/login')
-}
-
-function cancelLogout() {
-  logoutVisible.value = false
-}
+// 退出登录
 function confirmLogout() {
-  store.setToken('')
+  userStore.logout()
   logoutVisible.value = false
 }
+// 获取系统相关设置
+const getSystemSettingsInfo = async () => {
+  const res = await getSystemSetting()
+  if (res.code === 200) {
+    console.log('系统信息', res.data)
+    // settingsStore.updateSystemSetting(res.data)
+  }
+}
+// 获取默认翻译设置
+const getTranslateSettingInfo = async () => {
+  const res = await getTranslateSetting()
+  if (res.code === 200) {
+    // 更新系统设置store
+    settingsStore.updateSystemSettings(res.data)
+    // translateStore.updateAISettingsField('api_url',res.data.api_url)
+  }
+}
+onMounted(() => {
+  getUserInfo()
+  getTranslateSettingInfo()
+  // getSystemSettingsInfo()
+})
 </script>
 <style scoped lang="scss">
 .page-header {

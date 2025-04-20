@@ -18,7 +18,6 @@ class FileUploadResource(Resource):
     @jwt_required()
     def post(self):
         """文件上传接口"""
-        # 验证文件存在性
         if 'file' not in request.files:
             return APIResponse.error('未选择文件', 400)
         file = request.files['file']
@@ -42,8 +41,8 @@ class FileUploadResource(Resource):
         customer = Customer.query.get(user_id)
         file_size = request.content_length  # 使用实际内容长度
 
-        # 验证存储空间
-        if customer.storage + file_size > current_app.config['MAX_USER_STORAGE']:
+        # 验证存储空间current_app.config['MAX_USER_STORAGE']
+        if customer.storage + file_size > customer.total_storage:
             return APIResponse.error('存储空间不足', 403)
 
         try:

@@ -1,4 +1,5 @@
 # resources/admin/user.py
+from flask import request
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 
@@ -6,6 +7,7 @@ from app import db
 from app.models import User
 from app.utils.auth_tools import hash_password
 from app.utils.response import APIResponse
+
 
 class AdminUserListResource(Resource):
     @jwt_required()
@@ -60,6 +62,7 @@ class AdminCreateUserResource(Resource):
             'message': '用户创建成功'
         })
 
+
 # 获取用户详细信息
 class AdminUserDetailResource(Resource):
     @jwt_required()
@@ -74,6 +77,7 @@ class AdminUserDetailResource(Resource):
             'created_at': user.created_at.isoformat()
         })
 
+
 # 编辑用户信息
 class AdminUpdateUserResource(Resource):
     @jwt_required()
@@ -82,8 +86,7 @@ class AdminUpdateUserResource(Resource):
         user = User.query.get_or_404(id)
         data = request.json
 
-        if 'email' in data and User.query.filter(User.email == data['email'],
-                                                 User.id != id).first():
+        if 'email' in data and User.query.filter(User.email == data['email'],User.id != id).first():
             return APIResponse.error('邮箱已被使用', 400)
 
         if 'name' in data:
@@ -94,6 +97,7 @@ class AdminUpdateUserResource(Resource):
         db.session.commit()
         return APIResponse.success(message='用户信息更新成功')
 
+
 # 删除用户
 class AdminDeleteUserResource(Resource):
     @jwt_required()
@@ -103,4 +107,3 @@ class AdminDeleteUserResource(Resource):
         user.deleted_flag = 'Y'
         db.session.commit()
         return APIResponse.success(message='用户删除成功')
-

@@ -118,10 +118,7 @@ const registerSuccess = () => {
   registerVisible.value = false
   getCustomerData()
 }
-// 用户已经存储的空间大小
-const storageMB = computed(() => {
-  return Math.floor(formData.value.storage / (1024 * 1024))
-})
+
 
 /** 监听分页参数的变化 */
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getCustomerData, { immediate: true })
@@ -145,7 +142,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getCust
       <div class="table-wrapper">
         <el-table :data="customerData">
           <!-- <el-table-column type="selection" width="50" align="center" /> -->
-          <el-table-column prop="customer_no" label="用户编号" align="left" />
+          <el-table-column prop="id" label="用户编号" align="left" />
           <el-table-column prop="email" label="注册邮箱" align="left" />
           <el-table-column prop="level" label="用户等级" align="left">
             <template #default="scope">
@@ -155,6 +152,9 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getCust
           </el-table-column>
           <el-table-column prop="storage" label="已用存储空间" align="left">
             <template #default="{ row }"> {{ (row.storage / (1024 * 1024)).toFixed(2) }} MB </template>
+          </el-table-column>
+          <el-table-column prop="storage" label="总存储空间" align="left">
+            <template #default="{ row }"> {{ (row.total_storage / (1024 * 1024)).toFixed(2) }} MB </template>
           </el-table-column>
 
           <!-- <el-table-column prop="storage" label="已用存储空间" align="left" /> -->
@@ -220,7 +220,6 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getCust
             style="width: 80%"
             :precision="0"
             v-model="formData.add_storage"
-            :max="storageMB"
             :step="5"
             placeholder="请输入需要添加的存储空间(MB)"
           />

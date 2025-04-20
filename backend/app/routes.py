@@ -85,7 +85,7 @@ def register_routes(api):
     api.add_resource(ExportComparisonResource, '/api/comparison/export/<int:id>')
     api.add_resource(ExportAllComparisonsResource, '/api/comparison/export/all')
 
-    api.add_resource(SystemVersionResource, '/api/common/setting')
+    api.add_resource(SystemVersionResource, '/api/common/version')
     api.add_resource(SystemSettingsResource, '/api/common/all_settings')
 
     api.add_resource(MyPromptListResource, '/api/prompt/my')

@@ -4,6 +4,8 @@ import uuid
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 from app.models.customer import Customer
+
+
 class GuestIdResource(Resource):
     def get(self):
         """生成临时访客唯一标识[^1]"""
@@ -11,9 +13,6 @@ class GuestIdResource(Resource):
         return APIResponse.success({
             'guest_id': guest_id
         })
-
-
-
 
 
 class CustomerDetailResource(Resource):
@@ -28,5 +27,3 @@ class CustomerDetailResource(Resource):
             'created_at': customer.created_at.isoformat(),
             'storage': customer.storage
         })
-
-

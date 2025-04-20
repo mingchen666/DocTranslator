@@ -1,14 +1,10 @@
-import threading
-import time
-from datetime import datetime
 import os
-import traceback
 from flask import current_app
 from app.extensions import db
 from app.models.comparison import Comparison
 from app.models.prompt import Prompt
 from app.models.translate import Translate
-from app.translate import word, excel, powerpoint, pdf, txt, csv_handle, md, to_translate
+from app.translate import word, excel, powerpoint, pdf, gptpdf, txt, csv_handle, md, to_translate
 
 
 def main_wrapper(task_id, config, origin_path):
@@ -26,14 +22,13 @@ def main_wrapper(task_id, config, origin_path):
         if not task:
             current_app.logger.error(f"任务 {task_id} 不存在")
             return False
-            # 设置OpenAI API
 
-        # 初始化翻译配置
+        # 初始化翻译配置   (提示词-术语库加载)
         _init_translate_config(task)
         to_translate.init_openai(config['api_url'], config['api_key'])
         # 获取文件扩展名
         extension = os.path.splitext(origin_path)[1].lower()
-        print('文件扩展名',extension,origin_path)
+        # print('文件扩展名',extension,origin_path)
         # 调用文件处理器
         handler_map = {
             ('.docx', '.doc'): word,
@@ -68,6 +63,16 @@ def main_wrapper(task_id, config, origin_path):
         return False
 
 
+def pdf_handler(config, origin_path):
+    return gptpdf.start(config)
+    # if pdf.is_scanned_pdf(origin_path):
+    #     return gptpdf.start(config)
+    # else:
+    #     # 这里均使用gptpdf实现
+    #     return gptpdf.start(config)
+    #     # return pdf.start(config)
+
+
 def _init_translate_config(trans):
     """
     初始化翻译配置[^5]
@@ -76,16 +81,20 @@ def _init_translate_config(trans):
     # 设置OpenAI API
     if trans.api_url and trans.api_key:
         set_openai_config(trans.api_url, trans.api_key)
+    # 加载提示词模板
+    if trans.prompt_id and trans.prompt_id != 0:
+        prompt = get_prompt(trans.prompt_id)
+        trans.prompt = prompt
 
     # 加载术语对照表
     if trans.comparison_id:
         comparison = get_comparison(trans.comparison_id)
-        trans.prompt = f"{comparison}\n{trans.prompt}"
-
-    # 加载提示词模板
-    if trans.prompt_id:
-        prompt = get_prompt(trans.prompt_id)
-        trans.prompt = prompt
+        trans.prompt = f"""
+术语对照表如下:
+{comparison}
+---------------------
+{trans.prompt}
+"""
 
 
 def set_openai_config(api_url, api_key):

@@ -117,14 +117,14 @@ class StorageInfoResource(Resource):
         user_id = get_jwt_identity()
         customer = Customer.query.get(user_id)
 
-        total = current_app.config['MAX_USER_STORAGE'] / (1024 * 1024)  # 转换为MB
-        used = customer.storage / (1024 * 1024)  # 转换为MB
-        percentage = (used / total) * 100 if total > 0 else 0
+        total_storage = customer.total_storage # current_app.config['MAX_USER_STORAGE'] / (1024 * 1024)  # 转换为MB
+        used = customer.storage # / (1024 * 1024)  # 转换为MB
+        percentage = (used / total_storage) * 100 if total_storage > 0 else 0
 
         return APIResponse.success({
-            'storage': f"{total:.2f}",
-            'used': f"{used:.2f}",
-            'percentage': f"{percentage:.1f}"
+            'used_storage': f"{used}",
+            'total_storage': f"{total_storage}",
+            'percentage': f"{percentage:.2f}"
         })
 
 

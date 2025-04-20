@@ -11,7 +11,7 @@ load_dotenv(BASE_DIR / '.env')  # 显式指定.env文件位置
 class Config:
     # JWT配置
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)  # 5天
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=20)  # 20天
     # JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)  # 刷新令牌7天
     JWT_TOKEN_LOCATION = ['headers']  # 只从请求头获取
     JWT_HEADER_NAME = 'token'  # 匹配原项目可能的头部名称
@@ -38,7 +38,7 @@ class Config:
     ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc'}
     # UPLOAD_FOLDER = '/uploads'  # 建议使用绝对路径
     MAX_FILE_SIZE = 30 * 1024 * 1024  # 30MB
-    MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 80 * 1024 * 1024))  # 默认80MB
+    MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 100 * 1024 * 1024))  # 默认100MB
     # 翻译结果存储配置
     STORAGE_FOLDER = '/app/storage'  # 翻译结果存储路径
     STATIC_FOLDER = '/public/static'  # 设置静态文件路径
@@ -51,8 +51,8 @@ class Config:
     API_URL = 'https://api.example.com'
     TRANSLATE_MODELS = ['gpt-3.5', 'gpt-4']
 
-    # 时区配置
-    TIMEZONE = 'Asia/Shanghai'
+    # 时区
+    TIMEZONE = 'Asia/Shanghai'#'UTC' #'Asia/Shanghai'
     @property
     def allowed_domains(self):
         """获取格式化的域名列表"""
@@ -66,7 +66,7 @@ class DevelopmentConfig(Config):
     # SQLite配置（开发环境）
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'DEV_DATABASE_URL',
-        f'sqlite:////www/wwwroot/DocTranslator/backend/dev.db'  # 显式绝对路径
+        f'sqlite:///instance/dev.db'  # 显式绝对路径
     )
     # SQLALCHEMY_DATABASE_URI = 'sqlite:///yourdatabase.db'
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -86,7 +86,7 @@ class ProductionConfig(Config):
     # MySQL/PostgreSQL配置（生产环境）
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'PROD_DATABASE_URL',
-        'mysql+pymysql://user:password@localhost/prod_db?charset=utf8mb4'
+        'mysql://user:password@localhost/prod_db?charset=utf8mb4'
     )
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,

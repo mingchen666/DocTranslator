@@ -4,13 +4,16 @@
       <div class="logo">
         <img src="@/assets/logo.png" class="logo_img" alt="EZ-work" />
         <span>{{ store.pTitle }}</span>
-        <a class="btn_return" href="https://www.ehemart.com/" v-if="editionInfo == 'community'"><<返回官网</a>
+        <a class="btn_return" href="https://www.ehemart.com/" v-if="editionInfo == 'community'"
+          ><<返回官网</a
+        >
         <img
           class="icon_vip phone_show"
           style="height: 16px; margin-left: 10px"
           v-if="store.level == 'vip'"
           src="@/assets/vip.png"
-          alt="" />
+          alt=""
+        />
       </div>
       <!-- 社区版 -->
       <div class="btn-box" v-if="editionInfo == 'business'">
@@ -28,7 +31,12 @@
               <div class="icon_svg"><svg-icon icon-class="setting" /></div>
               <span class="pc_show">翻译设置</span>
             </div>
-            <img class="icon_vip pc_show" v-if="store.level == 'vip'" src="@/assets/vip.png" alt="" />
+            <img
+              class="icon_vip pc_show"
+              v-if="store.level == 'vip'"
+              src="@/assets/vip.png"
+              alt=""
+            />
             <el-dropdown placement="bottom-end" @command="user_action">
               <template #default>
                 <div>
@@ -53,7 +61,9 @@
         </template>
         <template v-else>
           <el-button class="pc_show" @click="authVisible = !authVisible">登录/注册</el-button>
-          <el-icon class="phone_show icon_user" @click="authVisible = !authVisible"><User /></el-icon>
+          <el-icon class="phone_show icon_user" @click="authVisible = !authVisible"
+            ><User
+          /></el-icon>
         </template>
       </div>
       <!-- 演示版 -->
@@ -65,7 +75,10 @@
           </div>
           <div
             class="btn_set"
-            @click="windowOpen('https://github.com/EHEWON/ezwork-ai-doc-translation?tab=readme-ov-file')">
+            @click="
+              windowOpen('https://github.com/EHEWON/ezwork-ai-doc-translation?tab=readme-ov-file')
+            "
+          >
             <div class="icon_svg"><svg-icon icon-class="github" /></div>
             <span class="pc_show">Github</span>
           </div>
@@ -84,7 +97,8 @@
       width="90%"
       modal-class="custom_dialog login_dialog"
       :show-close="false"
-      style="border-radius: 20px">
+      style="border-radius: 20px"
+    >
       <template #header="{ close, titleId, titleClass }">
         <el-menu
           :default-active="activeIndex"
@@ -92,7 +106,8 @@
           class="menu-center"
           @select="menuSelect"
           text-color="#8F8F91"
-          active-text-color="#111111">
+          active-text-color="#111111"
+        >
           <el-menu-item index="1" class="menu-title">登录</el-menu-item>
           <el-menu-item index="2" class="menu-title">注册</el-menu-item>
         </el-menu>
@@ -112,7 +127,8 @@
       width="90%"
       modal-class="custom_dialog login_dialog"
       :show-close="false"
-      style="border-radius: 20px">
+      style="border-radius: 20px"
+    >
       <template #header="{ close, titleId, titleClass }">
         <h1 :class="titleClass" class="forget-title">
           <el-icon style="cursor: pointer" @click="backToAuth">
@@ -133,7 +149,8 @@
       center
       width="90%"
       :show-close="false"
-      style="border-radius: 20px">
+      style="border-radius: 20px"
+    >
       <change @success="changeSuccess"></change>
     </el-dialog>
 
@@ -145,13 +162,20 @@
       :show-close="false"
       width="90%"
       heigt="240px"
-      style="border-radius: 20px">
+      style="border-radius: 20px"
+    >
       <div class="dialog-container">
         <div class="dialog-title">退出登录</div>
         <div class="dialog-content">您确定要退出登录吗？</div>
         <div class="dialog-btns">
           <el-button class="dialog-btn cancel" @click="logoutVisible = false">取消</el-button>
-          <el-button class="dialog-btn confirm" type="primary" color="#055CF9" @click="confirmLogout">确认</el-button>
+          <el-button
+            class="dialog-btn confirm"
+            type="primary"
+            color="#055CF9"
+            @click="confirmLogout"
+            >确认</el-button
+          >
         </div>
       </div>
     </el-dialog>
@@ -163,12 +187,17 @@
       class="custom_2_dialog"
       width="90%"
       heigt="240px"
-      style="border-radius: 20px">
+      style="border-radius: 20px"
+    >
       <div class="dialog-container">
         <img src="@assets/reset_success.png" style="width: 128px" />
         <div class="dialog-content" style="margin-top: 10px">重置密码成功！</div>
         <div class="dialog-btns">
-          <el-button class="dialog-btn send-confirm" color="#055CF9" @click="resetSuccessVisible = false">
+          <el-button
+            class="dialog-btn send-confirm"
+            color="#055CF9"
+            @click="resetSuccessVisible = false"
+          >
             确认
           </el-button>
         </div>
@@ -182,12 +211,17 @@
       class="custom_2_dialog"
       width="90%"
       heigt="240px"
-      style="border-radius: 20px">
+      style="border-radius: 20px"
+    >
       <div class="dialog-container">
         <img src="@assets/reset_success.png" style="width: 128px" />
         <div class="dialog-content" style="margin-top: 10px">您已注册成功！</div>
         <div class="dialog-btns">
-          <el-button class="dialog-btn send-confirm" color="#055CF9" @click="registerSuccessVisible = false">
+          <el-button
+            class="dialog-btn send-confirm"
+            color="#055CF9"
+            @click="registerSuccessVisible = false"
+          >
             确认
           </el-button>
         </div>
@@ -195,7 +229,13 @@
     </el-dialog>
 
     <!-- 新版翻译设置pc -->
-    <el-dialog v-model="formSetShow" title="翻译设置" width="90%" modal-class="setting_dialog" @close="formCancel">
+    <el-dialog
+      v-model="formSetShow"
+      title="翻译设置"
+      width="90%"
+      modal-class="setting_dialog"
+      @close="formCancel"
+    >
       <el-form ref="transformRef" :model="form" label-width="100px" :rules="rules">
         <el-form-item label="服务商" required prop="server" width="100%">
           <el-select v-model="form.server" placeholder="请选择服务商" disabled @change="saveValue">
@@ -208,12 +248,25 @@
             <el-input v-model="form.api_url" placeholder="请输入接口（base_url）地址"></el-input>
           </el-form-item>
           <el-form-item label="API Key" required prop="api_key" width="100%">
-            <el-input v-model="form.api_key" placeholder="请输入OpenAI的API KEY" show-password>></el-input>
+            <el-input v-model="form.api_key" placeholder="请输入OpenAI的API KEY" show-password
+              >></el-input
+            >
           </el-form-item>
         </template>
         <el-form-item label="模型" required prop="model" width="100%">
-          <el-select v-model="form.model" placeholder="请选择或自定义OpenAI模型" clearable filterable allow-create>
-            <el-option v-for="model in models" :key="model" :name="model" :value="model"></el-option>
+          <el-select
+            v-model="form.model"
+            placeholder="请选择或自定义OpenAI模型"
+            clearable
+            filterable
+            allow-create
+          >
+            <el-option
+              v-for="model in models"
+              :key="model"
+              :name="model"
+              :value="model"
+            ></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="备用模型" prop="backup_model" width="100%">
@@ -222,13 +275,15 @@
             placeholder="备用模型在翻译模型不可用时自动切换并继续完成翻译。"
             clearable
             filterable
-            allow-create>
+            allow-create
+          >
             <el-option
               v-for="model in models"
               :disabled="form.model == model ? true : false"
               :key="model"
               :name="model"
-              :value="model"></el-option>
+              :value="model"
+            ></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="翻译语言" required prop="langs" width="100%">
@@ -247,7 +302,8 @@
               allow-create
               :multiple="langMultiSelected"
               :multiple-limit="langMultipleLimit"
-              class="lang-select">
+              class="lang-select"
+            >
               <el-option v-for="lang in langs" :key="lang" :name="lang" :value="lang"></el-option>
             </el-select>
           </div>
@@ -260,7 +316,8 @@
             :options="types"
             clearable
             :props="{ expandTrigger: 'hover' }"
-            style="width: 100%"></el-cascader>
+            style="width: 100%"
+          ></el-cascader>
         </el-form-item>
         <!-- <el-form-item label="译文形式" required prop="type">
             <el-select v-model="form.type" placeholder="请选择译文形式">
@@ -269,18 +326,41 @@
             </el-select>
         </el-form-item> -->
         <el-form-item label="术语" width="100%" v-if="editionInfo == 'business'">
-          <el-select v-model="form.comparison_id" placeholder="请选择术语" clearable filterable :fit-input-width="true">
-            <el-option v-for="item in termsData" :key="item.id" :value="item.id" :label="item.title"></el-option>
+          <el-select
+            v-model="form.comparison_id"
+            placeholder="请选择术语"
+            clearable
+            filterable
+            :fit-input-width="true"
+          >
+            <el-option
+              v-for="item in termsData"
+              :key="item.id"
+              :value="item.id"
+              :label="item.title"
+            ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="提示语" required prop="prompt_id" width="100%" v-if="editionInfo == 'business'">
+        <el-form-item
+          label="提示语"
+          required
+          prop="prompt_id"
+          width="100%"
+          v-if="editionInfo == 'business'"
+        >
           <el-select
             v-model="form.prompt_id"
             placeholder="请选择提示语"
             filterable
             @change="prompt_id_change($event)"
-            :fit-input-width="true">
-            <el-option v-for="item in promptData" :key="item.id" :value="item.id" :label="item.title"></el-option>
+            :fit-input-width="true"
+          >
+            <el-option
+              v-for="item in promptData"
+              :key="item.id"
+              :value="item.id"
+              :label="item.title"
+            ></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="提示语" required prop="prompt" width="100%" v-else>
@@ -290,7 +370,8 @@
             type="textarea"
             :rows="3"
             resize="none"
-            placeholder="请输入系统翻译提示词"></el-input>
+            placeholder="请输入系统翻译提示词"
+          ></el-input>
         </el-form-item>
 
         <el-form-item label="线程数" required prop="threads" width="100%">
@@ -300,7 +381,8 @@
             :max="40"
             v-model="form.threads"
             :controls="false"
-            placeholder="注意：高线程≥10虽可以缩短翻译时长，但服务器负载较高，易引发异常，请谨慎使用！"></el-input-number>
+            placeholder="注意：高线程≥10虽可以缩短翻译时长，但服务器负载较高，易引发异常，请谨慎使用！"
+          ></el-input-number>
         </el-form-item>
 
         <el-form-item label="Doc2x" required prop="threads" width="100%" style="margin-bottom: 0px">
@@ -309,7 +391,13 @@
             <el-radio value="Y" size="large">启用</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label=" " prop="doc2x_secret_key" width="100%" v-if="form.doc2x_flag == 'Y'" class="no_label">
+        <el-form-item
+          label=" "
+          prop="doc2x_secret_key"
+          width="100%"
+          v-if="form.doc2x_flag == 'Y'"
+          class="no_label"
+        >
           <div class="flex_box">
             <el-input v-model="form.doc2x_secret_key" placeholder="请输入Doc2x的API KEY"></el-input>
             <el-button :disabled="docx2_loading" :loading="docx2_loading" @click="docx2_check">
@@ -331,7 +419,9 @@
             <el-tag v-if="check_text && check_text == 'fail'" type="danger">失败</el-tag>
           </div>
           <el-button @click="formReset">重置设置</el-button>
-          <el-button type="primary" color="#055CF9" @click="formConfim(transformRef)">确认</el-button>
+          <el-button type="primary" color="#055CF9" @click="formConfim(transformRef)"
+            >确认</el-button
+          >
         </div>
       </template>
     </el-dialog>
@@ -355,7 +445,7 @@ store.setTitle('DocTranslator AI文档翻译')
 const router = useRouter()
 const props = defineProps({
   title: String,
-  authDialog: Boolean,
+  authDialog: Boolean
 })
 const authVisible = ref(false)
 const logoutVisible = ref(false)
@@ -394,13 +484,13 @@ const types = [
         children: [
           {
             value: 'trans_text_only_new',
-            label: '重排版面',
+            label: '重排版面'
           },
           {
             value: 'trans_text_only_inherit',
-            label: '继承原版面',
-          },
-        ],
+            label: '继承原版面'
+          }
+        ]
       },
       {
         value: 'trans_text_both',
@@ -408,15 +498,15 @@ const types = [
         children: [
           {
             value: 'trans_text_both_new',
-            label: '重排版面',
+            label: '重排版面'
           },
           {
             value: 'trans_text_both_inherit',
-            label: '继承原版面',
-          },
-        ],
-      },
-    ],
+            label: '继承原版面'
+          }
+        ]
+      }
+    ]
   },
   {
     value: 'trans_all',
@@ -428,13 +518,13 @@ const types = [
         children: [
           {
             value: 'trans_all_only_new',
-            label: '重排版面',
+            label: '重排版面'
           },
           {
             value: 'trans_all_only_inherit',
-            label: '继承原版面',
-          },
-        ],
+            label: '继承原版面'
+          }
+        ]
       },
       {
         value: 'trans_all_both',
@@ -442,16 +532,16 @@ const types = [
         children: [
           {
             value: 'trans_all_both_new',
-            label: '重排版面',
+            label: '重排版面'
           },
           {
             value: 'trans_all_both_inherit',
-            label: '继承原版面',
-          },
-        ],
-      },
-    ],
-  },
+            label: '继承原版面'
+          }
+        ]
+      }
+    ]
+  }
 ]
 
 const langs = ['中文', '英语', '日语', '俄语', '阿拉伯语', '西班牙语']
@@ -466,7 +556,7 @@ const languageMap = {
   spa: '西班牙语',
   rus: '俄语',
   ara: '阿拉伯语',
-  deu: '德语',
+  deu: '德语'
   // ... 添加更多 Tesseract 支持的语言
 }
 
@@ -474,7 +564,7 @@ const languageMap = {
 const languageOptions = computed(() => {
   return Object.entries(languageMap).map(([value, label]) => ({
     value,
-    label,
+    label
   }))
 })
 
@@ -496,7 +586,7 @@ const form = ref({
   comparison_id: '', //术语id
   prompt_id: '', //提示语id
   doc2x_flag: 'N',
-  doc2x_secret_key: '',
+  doc2x_secret_key: ''
 })
 
 const rules = {
@@ -505,15 +595,15 @@ const rules = {
     {
       required: true,
       message: '请输入接口地址',
-      trigger: ['blur', 'change'],
-    },
+      trigger: ['blur', 'change']
+    }
   ],
   api_key: [
     {
       required: true,
       message: '请输入API Key',
-      trigger: ['blur', 'change'],
-    },
+      trigger: ['blur', 'change']
+    }
   ],
   server: [{ required: true, message: '请选择供应商', trigger: ['blur', 'change'] }],
   type: [{ required: true, message: '请选择译文形式', trigger: ['blur', 'change'] }],
@@ -522,7 +612,9 @@ const rules = {
   prompt: [{ required: true, message: '请填写系统提示语', trigger: ['blur', 'change'] }],
   prompt_id: [{ required: true, message: '请选择提示语', trigger: ['blur', 'change'] }],
   threads: [{ required: true, message: '请填写线程数', trigger: ['blur', 'change'] }],
-  doc2x_secret_key: [{ required: true, message: '请输入Doc2x的API KEY', trigger: ['blur', 'change'] }],
+  doc2x_secret_key: [
+    { required: true, message: '请输入Doc2x的API KEY', trigger: ['blur', 'change'] }
+  ]
 }
 
 onMounted(() => {
@@ -779,7 +871,7 @@ function check() {
         check_text.value = 'fail'
         ElMessage({
           message: data.message,
-          type: 'error',
+          type: 'error'
         })
       }
     })
@@ -788,7 +880,7 @@ function check() {
       check_text.value = 'fail'
       ElMessage({
         message: '接口异常',
-        type: 'error',
+        type: 'error'
       })
     })
 }
@@ -796,7 +888,7 @@ function check() {
 function docx2_check() {
   docx2_loading.value = true
   let _prarms = {
-    doc2x_secret_key: form.value.doc2x_secret_key,
+    doc2x_secret_key: form.value.doc2x_secret_key
   }
   checkDocx(_prarms)
     .then((data) => {
@@ -807,13 +899,13 @@ function docx2_check() {
         docx2_title.value = '失败'
         ElMessage({
           message: 'key值无效',
-          type: 'error',
+          type: 'error'
         })
       } else {
         docx2_title.value = '失败'
         ElMessage({
           message: data.message,
-          type: 'error',
+          type: 'error'
         })
       }
     })
@@ -822,7 +914,7 @@ function docx2_check() {
       docx2_title.value = '失败'
       ElMessage({
         message: '接口异常',
-        type: 'error',
+        type: 'error'
       })
     })
 }

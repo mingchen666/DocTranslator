@@ -103,8 +103,8 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, register, registerSendEmail } from '@/api/auth'
-import { store } from '@/store'
-
+import { useUserStore } from '@/store/user'
+const userStore = useUserStore()
 const router = useRouter()
 const activeTab = ref('login')
 const loginFormRef = ref(null)
@@ -117,7 +117,6 @@ const loginRules = reactive({
   email: [{ required: true, message: '请填写邮箱地址', trigger: 'blur' }],
   password: [{ required: true, message: '请填写密码', trigger: 'blur' }]
 })
-
 
 // 注册表单
 const registerForm = reactive({
@@ -175,9 +174,7 @@ const doLogin = async () => {
       login(loginForm)
         .then((data) => {
           if (data.code === 200) {
-            store.setToken(data.data.token)
-            store.setUsername(data.data.email)
-            store.setLevel(data.data.level)
+            userStore.updateToken(data.data.token)
             router.push({ name: 'home' })
           } else {
             ElMessage.error(data.message)
@@ -194,9 +191,7 @@ const doLogin = async () => {
 
 // 注册
 const doRegister = async () => {
-
   if (!registerFormRef.value) return
-
   registerFormRef.value.validate((valid) => {
     if (valid) {
       if (registerForm.password !== registerForm.password2) {
@@ -206,8 +201,6 @@ const doRegister = async () => {
       register(registerForm)
         .then((data) => {
           if (data.code === 200) {
-            store.setToken(data.data.token)
-            store.setUsername(data.data.email)
             ElMessage.success('注册成功')
             activeTab.value = 'login'
           } else {
