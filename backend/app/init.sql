@@ -1,4 +1,5 @@
 
+
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
@@ -82,7 +83,7 @@ CREATE TABLE `customer` (
 --
 
 INSERT INTO `customer` (`id`, `customer_no`, `phone`, `name`, `password`, `email`, `level`, `status`, `deleted_flag`, `created_at`, `updated_at`, `storage`, `total_storage`) VALUES
-(1, NULL, NULL, NULL, 'scrypt:32768:8:1$FTZLV5ptzN1KMmIS$aa80b88763b514b30f647130cd535b39cdbab617cebebedab8b954e2616f72ca01f180520a82a61dbf63ea6e88618aa039287ed540857e110ffabd0252c3ac3f', 'test', 'common', 'enabled', 'N', '2025-04-20 08:17:17', NULL, 0, 104857600);
+(1, NULL, NULL, NULL, 'scrypt:32768:8:1$FTZLV5ptzN1KMmIS$aa80b88763b514b30f647130cd535b39cdbab617cebebedab8b954e2616f72ca01f180520a82a61dbf63ea6e88618aa039287ed540857e110ffabd0252c3ac3f', 'test', 'common', 'enabled', 'N', '2025-04-20 08:17:17', '2025-04-22 02:48:49', 7354362, 104857600);
 
 -- --------------------------------------------------------
 
@@ -211,6 +212,13 @@ CREATE TABLE `translate` (
   `app_key` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+--
+-- 转存表中的数据 `translate`
+--
+
+INSERT INTO `translate` (`id`, `translate_no`, `uuid`, `customer_id`, `rand_user_id`, `origin_filename`, `origin_filepath`, `target_filepath`, `status`, `start_at`, `end_at`, `deleted_flag`, `created_at`, `updated_at`, `origin_filesize`, `target_filesize`, `lang`, `model`, `prompt`, `api_url`, `api_key`, `threads`, `failed_reason`, `failed_count`, `word_count`, `backup_model`, `md5`, `type`, `origin_lang`, `process`, `doc2x_flag`, `doc2x_secret_key`, `prompt_id`, `comparison_id`, `size`, `server`, `app_id`, `app_key`) VALUES
+(1, 'TRANS20250422104842', '45680b74-b63b-431a-82a2-5356353a9f64', 1, NULL, '“泉涌情深：润兵甘泉的故事”.docx', 'F:\\桌面文件\\我的vue项目\\文档翻译项目\\后端重构-api项目\\storage\\uploads\\2025-04-22\\“泉涌情深：润兵甘泉的故事”.docx', 'F:\\桌面文件\\我的vue项目\\文档翻译项目\\后端重构-api项目\\storage\\translate\\2025-04-22\\“泉涌情深：润兵甘泉的故事”.docx', 'done', '2025-04-22 10:48:50', '2025-04-22 10:49:50', 'N', '2025-04-22 02:48:43', '2025-04-22 02:49:50', 2451642, 0, '英语', 'THUDM/GLM-4-32B-0414', '你是一个文档翻译助手，请将以下文本、单词或短语直接翻译成{target_lang}，不返回原文本。如果文本中包含{target_lang}文本、特殊名词（比如邮箱、品牌名、单位名词如mm、px、℃等）、无法翻译等特殊情况，请直接返回原文而无需解释原因。遇到无法翻译的文本直接返回原内容。保留多余空格。', 'https://api.siliconflow.cn', 'sk-nwidhtjmodqbljlmpjuvudhdhidhjnntjfcpskrvixvwogbl', 5, NULL, 0, 0, 'deepseek-chat', 'e0fc86bdc48cd7dda19a7b193e7c36ca', 'trans_text_only_new', '', 100, 'N', '', 0, NULL, 2451360, 'openai', '', '');
+
 -- --------------------------------------------------------
 
 --
@@ -232,7 +240,7 @@ CREATE TABLE `user` (
 --
 
 INSERT INTO `user` (`id`, `name`, `password`, `email`, `deleted_flag`, `created_at`, `updated_at`) VALUES
-(1, 'admin', '123456', 'admin', NULL, NULL, NULL);
+(1, 'admin', '123456', 'admin', 'N', NULL, NULL);
 
 --
 -- 转储表的索引
@@ -348,7 +356,7 @@ ALTER TABLE `setting`
 -- 使用表AUTO_INCREMENT `translate`
 --
 ALTER TABLE `translate`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- 使用表AUTO_INCREMENT `user`

@@ -70,7 +70,7 @@
         <!-- 译文形式 -->
         <el-form-item label="译文形式" required>
           <el-cascader
-            v-model="settingsForm.aiServer.type"
+            v-model="settingsForm.common.type"
             :options="typeOptions"
             placeholder="选择译文形式"
             style="width: 100%"
@@ -523,6 +523,7 @@ const formConfim = (formEl) => {
       } else if (settingsForm.value.currentService === 'google') {
         translateStore.updateGoogleSettings(settingsForm.value.google)
       }
+console.log('settingsForm.value.common',settingsForm.value.common);
 
       translateStore.updateCommonSettings(settingsForm.value.common)
       ElMessage.success('设置保存成功')
@@ -544,8 +545,6 @@ const open = () => {
     baidu: { ...translateStore.baidu },
     google: { ...translateStore.google },
     common: { ...translateStore.common },
-    prompt_id: localStorage.getItem('prompt_id') || '',
-    comparison_id: localStorage.getItem('comparison_id') || ''
   }
 }
 

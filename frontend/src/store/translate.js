@@ -19,7 +19,6 @@ export const useTranslateStore = defineStore('translate-settings', () => {
     threads: settingsStore.system_settings.max_threads,
     comparison_id: null,
     lang: '',
-    type: [],
     doc2x_flag: '',
     doc2x_secret_key: ''
   })
@@ -52,7 +51,7 @@ export const useTranslateStore = defineStore('translate-settings', () => {
   const common = ref({
     langs: ['中文', '英语'],
     type: ['trans_text', 'trans_text_only', 'trans_text_only_new'],
-    comparison_id: '',
+    // comparison_id: null,
     doc2x_flag: 'N',
     doc2x_secret_key: ''
   })
@@ -111,11 +110,11 @@ export const useTranslateStore = defineStore('translate-settings', () => {
   const getCurrentServiceForm = computed(() => {
     switch (currentService.value) {
       case 'ai':
-        return { ...aiServer.value, ...otherSettings.value, server: 'openai' };
+        return { ...common.value, ...aiServer.value, server: 'openai' };
       case 'baidu':
-        return { ...baidu.value, ...otherSettings.value, server: 'baidu' };
+        return { ...common.value, ...baidu.value, server: 'baidu' };
       case 'google':
-        return { ...google.value, ...otherSettings.value, server: 'google' };
+        return { ...common.value, ...google.value, server: 'google' };
       default:
         return {}; // 默认返回空对象
     }

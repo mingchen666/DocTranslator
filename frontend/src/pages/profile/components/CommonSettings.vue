@@ -76,10 +76,10 @@ const form = ref({
 onMounted(() => {
   form.value = {
     comparison_id: translateStore.aiServer.comparison_id,
-    type: translateStore.otherSettings.type,
-    threads: translateStore.otherSettings.threads,
-    doc2x_flag: translateStore.otherSettings.doc2x_flag,
-    doc2x_secret_key: translateStore.otherSettings.doc2x_secret_key
+    type: translateStore.common.type,
+    threads: translateStore.common.threads,
+    doc2x_flag: translateStore.common.doc2x_flag,
+    doc2x_secret_key: translateStore.common.doc2x_secret_key
   }
 })
 // 动态验证规则
@@ -168,7 +168,7 @@ const submitForm = async () => {
       doc2x_flag: form.value.doc2x_flag,
       doc2x_secret_key: form.value.doc2x_secret_key //form.value.doc2x_flag === 'Y' ? form.value.doc2x_secret_key : ''
     }
-    translateStore.updateOtherSettings(submitData)
+    translateStore.updateCommonSettings(submitData)
     // 更新术语库id选择
     translateStore.updateAIServerSettings({ comparison_id: form.value.comparison_id })
     ElMessage.success('保存成功!')
