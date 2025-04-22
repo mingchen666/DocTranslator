@@ -4,7 +4,7 @@ from app.extensions import db
 from app.models.comparison import Comparison
 from app.models.prompt import Prompt
 from app.models.translate import Translate
-from app.translate import word, excel, powerpoint, pdf, gptpdf, txt, csv_handle, md, to_translate
+from app.translate import word, excel, powerpoint, pdf,  txt, csv_handle, md, to_translate
 
 
 def main_wrapper(task_id, config, origin_path):
@@ -63,8 +63,8 @@ def main_wrapper(task_id, config, origin_path):
         return False
 
 
-def pdf_handler(config, origin_path):
-    return gptpdf.start(config)
+# def pdf_handler(config, origin_path):
+#     return gptpdf.start(config)
     # if pdf.is_scanned_pdf(origin_path):
     #     return gptpdf.start(config)
     # else:

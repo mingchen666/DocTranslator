@@ -6,15 +6,15 @@ import time
 import getopt
 from . import to_translate
 from . import word
-import excel
-import powerpoint
-import pdf
-import gptpdf
-import txt
-import csv_handle
-import md
+from . import excel
+from . import powerpoint
+from . import pdf
+
+from . import txt
+from . import csv_handle
+from . import md
 import pymysql
-import db
+from . import db
 from . import common
 import traceback
 from . import rediscon
@@ -90,10 +90,10 @@ def main():
         elif extension=='.ppt' or extension == '.pptx':
             status=powerpoint.start(trans)
         elif extension == '.pdf':
-            if pdf.is_scanned_pdf(trans['file_path']):
-                status=gptpdf.start(trans)
-            else:
-                status=pdf.start(trans)
+            # if pdf.is_scanned_pdf(trans['file_path']):
+            #     status=gptpdf.start(trans)
+            # else:
+            status=pdf.start(trans)
         elif extension == '.txt':
             status=txt.start(trans)
         elif extension == '.csv':
