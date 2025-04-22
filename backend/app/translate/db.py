@@ -8,7 +8,7 @@ from threading import Lock
 
 _ = load_dotenv(find_dotenv()) # read local .env file
 
-def get_conn6():
+def get_conn():
     try:
         # 获取数据库 URL
         db_url = os.environ.get('PROD_DATABASE_URL')
@@ -54,9 +54,6 @@ def get_conn6():
         raise
 
 
-def get_conn():
-    # sqlite_db = os.environ['SQLLITE_DATABASE_URL']  # 假设 .env 文件中有一个 DB_PATH 变量指向 SQLite 数据库文件路径
-    return sqlite3.connect(r'F:\桌面文件\我的vue项目\文档翻译项目\后端重构-api项目\instance\dev.db')
 
 def get_conn1():
     mysql_host=os.environ['DB_HOST']
