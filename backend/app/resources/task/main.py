@@ -4,12 +4,11 @@ from app.extensions import db
 from app.models.comparison import Comparison
 from app.models.prompt import Prompt
 from app.models.translate import Translate
-from app.translate import word, excel, powerpoint, pdf,  txt, csv_handle, md, to_translate
+from app.translate import word, excel, powerpoint, pdf, txt, csv_handle, md, to_translate
 
 
 def main_wrapper(task_id, config, origin_path):
     """
-    翻译任务核心逻辑（支持多参数）[^4]
     :param task_id: 任务ID
     :param origin_path: 原始文件绝对路径
     :param target_path: 目标文件绝对路径
@@ -63,14 +62,7 @@ def main_wrapper(task_id, config, origin_path):
         return False
 
 
-# def pdf_handler(config, origin_path):
-#     return gptpdf.start(config)
-    # if pdf.is_scanned_pdf(origin_path):
-    #     return gptpdf.start(config)
-    # else:
-    #     # 这里均使用gptpdf实现
-    #     return gptpdf.start(config)
-    #     # return pdf.start(config)
+
 
 
 def _init_translate_config(trans):
@@ -81,20 +73,7 @@ def _init_translate_config(trans):
     # 设置OpenAI API
     if trans.api_url and trans.api_key:
         set_openai_config(trans.api_url, trans.api_key)
-    # 加载提示词模板
-    if trans.prompt_id and trans.prompt_id != 0:
-        prompt = get_prompt(trans.prompt_id)
-        trans.prompt = prompt
 
-    # 加载术语对照表
-    if trans.comparison_id:
-        comparison = get_comparison(trans.comparison_id)
-        trans.prompt = f"""
-术语对照表如下:
-{comparison}
----------------------
-{trans.prompt}
-"""
 
 
 def set_openai_config(api_url, api_key):
@@ -115,7 +94,7 @@ def get_comparison(comparison_id):
     comparison = db.session.query(Comparison).filter_by(id=comparison_id).first()
     if comparison and comparison.content:
         return comparison.content.replace(',', ':').replace(';', '\n')
-    return ""
+    return
 
 
 def get_prompt(prompt_id):
@@ -127,4 +106,4 @@ def get_prompt(prompt_id):
     prompt = db.session.query(Prompt).filter_by(id=prompt_id).first()
     if prompt and prompt.content:
         return prompt.content
-    return ""
+    return
