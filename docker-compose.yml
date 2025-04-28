@@ -1,27 +1,39 @@
 version: '3'
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-container
+    environment:
+      # 请根据实际需求修改密码和数据库名
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - doctranslator-mysql:/var/lib/mysql
+    networks: 
+      - my-network
+
   backend:
-    image: eggsunsky/doctranslator:latest
+    image: doctranslator
     container_name: backend-container
     ports:
       - "5000:5000"
-    volumes:
-      - ./backend/db:/app/db
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=your-secret-key
-      # 数据库配置 PROD_DATABASE_URL=sqlite:////app/db/dev.db
-      - SQLALCHEMY_DATABASE_URI=sqlite:////app/db/dev.db
-      # 开发环境数据库（SQLite）
-      - DEV_DATABASE_URL=sqlite:////app/db/dev.db
-      # 生产环境数据库（按需配置）sqlite 或者mysql
-      - PROD_DATABASE_URL=sqlite:////app/db/dev.db
-      # PROD_DATABASE_URL=mysql+pymysql://user:pwd@localhost/xxxx
-      # JWT 配置
+      # 数据库配置（开发/生产环境均使用 MySQL）
+      # 原：SQLALCHEMY_DATABASE_URI=sqlite:////app/db/dev.db
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://user:password@mysql:3306/appdb
+      # 原：DEV_DATABASE_URL=sqlite:////app/db/dev.db
+      - DEV_DATABASE_URL=mysql+pymysql://user:password@mysql:3306/appdb
+      # 原：PROD_DATABASE_URL=sqlite:////app/db/dev.db
+      - PROD_DATABASE_URL=mysql+pymysql://user:password@mysql:3306/appdb
+
       - JWT_SECRET_KEY=sxxxxxx
       - JWT_ACCESS_TOKEN_EXPIRES=172800
-      # 数据库配置
+      # 邮件配置
       - MAIL_SERVER=smtp.qq.com
       - MAIL_PORT=587
       - MAIL_USE_TLS=true
@@ -31,6 +43,8 @@ services:
       - ALLOWED_EMAIL_DOMAINS=qq.com,163.com,126.com
       # 跨域 允许的域名
       - ALLOWED_DOMAINS=*
+    depends_on:
+      - mysql
     networks:
       - my-network
 
@@ -49,6 +63,9 @@ services:
       - backend
     networks:
       - my-network
+
+volumes:
+  doctranslator-mysql:
 
 networks:
   my-network:
