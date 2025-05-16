@@ -218,3 +218,6 @@ This project is a refactored and optimized version based on [ezwork](https://git
 ## 🙏 Thanks
 
   [BabelDOC](https://github.com/funstory-ai/BabelDOC)
+
+
+[![Star History](https://api.star-history.com/svg?repos=mingchen666/DocTranslator&type=Date)](https://star-history.com/#mingchen666/DocTranslator)

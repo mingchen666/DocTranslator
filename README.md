@@ -7,9 +7,16 @@
 
 ---
 
-[点击在线使用](https://demo.doctranslate.top) 
+| 🌐 **在线体验**     | [立即访问](https://doctranslator.vjjwz.cn/) |
+|:--------------------:|:----------------------------------:|
+| 📚 **官方文档**     | [查看文档](https://www.doctranslate.top/)      |
+| 👉 **推荐API中转站**    | [立即使用](https://www.ezworkapi.com)     |
 
-[GPT中转站推荐-低价优惠-点击此处跳转](https://www.ezworkapi.com) 
+
+
+
+
+[🔥GPT中转站推荐-低价优惠-点击此处跳转🔥](https://www.ezworkapi.com) 
 
 ---
 
@@ -277,3 +284,5 @@ docker compose up -d
 ## 🙏 感谢
 
   [BabelDOC](https://github.com/funstory-ai/BabelDOC)
+
+[![Star History](https://api.star-history.com/svg?repos=mingchen666/DocTranslator&type=Date)](https://star-history.com/#mingchen666/DocTranslator)

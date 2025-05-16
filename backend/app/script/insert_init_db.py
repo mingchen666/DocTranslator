@@ -159,3 +159,84 @@ def set_auto_increment(app):
         else:
             raise NotImplementedError(f"Unsupported database dialect: {dialect}")
 
+# 初始化设置表
+def insert_initial_settings(app):
+    """初始化系统配置表数据"""
+    INITIAL_SETTINGS = [
+        {"id": 1, "alias": "notice_setting", "value": '["1"]', "serialized": 1,
+         "created_at": "2024-06-25 01:39:39", "group": None},
+        {"id": 2, "alias": "api_url", "value": "https://api.ezworkapi.top/v1",
+         "serialized": 0,
+         "created_at": "2024-07-26 05:26:21", "updated_at": "2025-04-14 03:53:53.066041",
+         "group": "api_setting"},
+        {"id": 3, "alias": "api_key", "value": "sk-xxxx", "serialized": 0,
+         "created_at": "2024-07-26 05:26:21", "updated_at": "2025-04-14 03:53:53.070526",
+         "group": "api_setting"},
+        {"id": 4, "alias": "models", "value": "gpt-3.5-turbo-0125,deepseek-chat,test,666666666",
+         "serialized": 0,
+         "created_at": "2024-07-26 05:26:21", "updated_at": "2025-04-14 03:53:53.071734",
+         "group": "api_setting"},
+        {"id": 5, "alias": "default_model", "value": "", "serialized": 0,
+         "created_at": "2024-07-26 05:26:21", "updated_at": "2025-04-14 03:53:53.072734",
+         "group": "api_setting"},
+        {"id": 6, "alias": "default_backup", "value": "deepseek-chat", "serialized": 0,
+         "created_at": "2024-07-26 05:26:21", "updated_at": "2024-07-26 13:26:21",
+         "group": "api_setting"},
+        {"id": 7, "alias": "prompt", "value": "你是一个文档翻译助手，请将以下文本、单词或短语直接翻译成{target_lang}，不返回原文本。如果文本中包含{target_lang}文本、特殊名词（比如邮箱、品牌名、单位名词如mm、px、℃等）、无法翻译等特殊情况，请直接返回原文而无需解释原因。遇到无法翻译的文本直接返回原内容。保留多余空格。", "serialized": 0,
+         "created_at": "2024-09-02 05:55:30", "updated_at": "2024-09-02 13:55:30",
+         "group": "other_setting"},
+        {"id": 8, "alias": "threads", "value": "6", "serialized": 0,
+         "created_at": "2024-09-02 05:55:30", "updated_at": "2025-04-14 03:54:26.467467",
+         "group": "other_setting"},
+        {"id": 9, "alias": "email_limit", "value": "", "serialized": 0,
+         "created_at": "2024-09-02 05:55:31", "updated_at": "2024-09-02 13:55:31",
+         "group": "other_setting"},
+        {"id": 10, "alias": "version", "value": "community", "serialized": 0,
+         "created_at": "2025-02-18 01:57:39", "updated_at": "2025-03-04 00:57:20.624926",
+         "group": "site_setting"}
+    ]
+
+    with app.app_context():
+        try:
+            inserted_count = 0
+            for setting in INITIAL_SETTINGS:
+                # 复合检查：同时验证id和alias是否存在
+                exists = db.session.execute(
+                    text("SELECT 1 FROM setting WHERE id = :id OR alias = :alias"),
+                    {"id": setting["id"], "alias": setting["alias"]}
+                ).scalar()
+
+                if not exists:
+                    # 构建动态SQL（处理可能为NULL的updated_at和group）
+                    sql = """
+                    INSERT INTO setting (
+                        id, alias, value, serialized, created_at, 
+                        updated_at, deleted_flag, `group`
+                    ) VALUES (
+                        :id, :alias, :value, :serialized, :created_at,
+                        :updated_at, 'N', :group
+                    )
+                    """
+                    params = {
+                        "id": setting["id"],
+                        "alias": setting["alias"],
+                        "value": setting["value"],
+                        "serialized": setting["serialized"],
+                        "created_at": setting["created_at"],
+                        "updated_at": setting.get("updated_at"),
+                        "group": setting.get("group")
+                    }
+                    db.session.execute(text(sql), params)
+                    inserted_count += 1
+
+            if inserted_count > 0:
+                db.session.commit()
+                print(f"✅ 成功插入 {inserted_count}/{len(INITIAL_SETTINGS)} 条配置")
+            else:
+                print("⏩ 所有系统配置数据已存在，无需插入")
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ 初始化失败: {str(e)}")
+            raise
+

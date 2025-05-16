@@ -222,7 +222,7 @@ import { useTranslateStore } from '@/store/translate'
 import { useSettingsStore } from '@/store/settings'
 import { ElMessage } from 'element-plus'
 import { prompt_my, comparison_my } from '@/api/corpus'
-import {  checkOpenAI, checkDocx } from '@/api/trans'
+import { checkOpenAI, checkDocx } from '@/api/trans'
 const translateStore = useTranslateStore()
 const settingsStore = useSettingsStore()
 const formSetShow = ref(false)
@@ -350,7 +350,7 @@ const prompt_id_focus = async () => {
       promptData.value.unshift({
         id: 0,
         title: '默认系统提示语',
-        content: settingsStore.system_settings.prompt_template,
+        content: settingsStore.system_settings.prompt_template
       })
     }
   } catch (error) {
@@ -479,10 +479,14 @@ const check = async () => {
     // 根据当前服务调用不同的检查API
     let res
     if (settingsForm.value.currentService === 'ai') {
-      // res = await checkOpenAI({...})
+      res = await checkOpenAI(settingsForm.value.aiServer)
     } else if (settingsForm.value.currentService === 'baidu') {
+      alert('百度翻译暂不支持检查')
+      return
       // res = await checkBaidu({...})
     } else if (settingsForm.value.currentService === 'google') {
+      alert('谷歌翻译暂不支持检查')
+      return
       // res = await checkGoogle({...})
     }
 
@@ -523,7 +527,7 @@ const formConfim = (formEl) => {
       } else if (settingsForm.value.currentService === 'google') {
         translateStore.updateGoogleSettings(settingsForm.value.google)
       }
-console.log('settingsForm.value.common',settingsForm.value.common);
+      console.log('settingsForm.value.common', settingsForm.value.common)
 
       translateStore.updateCommonSettings(settingsForm.value.common)
       ElMessage.success('设置保存成功')
@@ -544,7 +548,7 @@ const open = () => {
     aiServer: { ...translateStore.aiServer },
     baidu: { ...translateStore.baidu },
     google: { ...translateStore.google },
-    common: { ...translateStore.common },
+    common: { ...translateStore.common }
   }
 }
 

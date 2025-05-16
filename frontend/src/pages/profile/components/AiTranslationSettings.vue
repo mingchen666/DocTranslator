@@ -10,9 +10,21 @@
 
     <!-- OpenAI配置 -->
     <template v-if="form.provider === 'openai'">
-      <el-form-item label="API地址" prop="api_url">
-        <el-input v-model="form.api_url" placeholder="https://www.ezworkapi.com" clearable>
-        </el-input>
+      <el-form-item prop="api_url">
+        <template #label>
+          <span class="label-with-ad">
+            API地址
+            <el-tag
+              size="mini"
+              type="warning"
+              style="margin-left: 8px; cursor: pointer; font-size: medium"
+              @click="visitSite"
+            >
+              🔥 推荐使用在线api中转站
+            </el-tag>
+          </span>
+        </template>
+        <el-input v-model="form.api_url" placeholder="https://api.ezworkapi.top" clearable />
       </el-form-item>
 
       <el-form-item label="API密钥" prop="api_key">
@@ -69,6 +81,10 @@ const testButtonType = computed(() => {
   if (testResult.value === 'fail') return 'danger'
   return ''
 })
+
+const visitSite = () => {
+  window.open('https://api.ezworkapi.top', '_blank')
+}
 
 const rules = {
   provider: [{ required: true, message: '请选择服务商', trigger: 'change' }],
@@ -170,6 +186,27 @@ onMounted(() => {
 
   .error-icon {
     color: var(--el-color-danger);
+  }
+}
+.ad-banner {
+  background-color: #fff8e6;
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-top: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ad-banner:hover {
+  background-color: #fffaf0;
+}
+@media (max-width: 768px) {
+  .label-with-ad {
+    display: flex;
+    flex-direction: column;
+  }
+  .ad-banner {
+    padding: 5px;
+    text-align: center;
   }
 }
 </style>

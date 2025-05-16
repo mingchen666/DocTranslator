@@ -117,10 +117,10 @@ router.beforeEach((to) => {
   }
 
   // 已登录状态访问登录页
-  if (to.name === 'login' && userStore.token) {
-    ElMessage.warning('您已登录')
-    return '/' // 跳转到首页
-  }
+  // if (to.name === 'login' && userStore.token) {
+  //   ElMessage.warning('您已登录')
+  //   return '/' // 跳转到首页
+  // }
   // 其他情况正常放行
   return true
 })
