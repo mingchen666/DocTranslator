@@ -2,9 +2,12 @@ node_modules/
 ## 缓存文件
 .cache/
 ## 环境变量文件
-# .env
-# .env.local
-# .env.*.local
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.*
+
 ## 日志文件
 npm-debug.log*
 yarn-debug.log*
