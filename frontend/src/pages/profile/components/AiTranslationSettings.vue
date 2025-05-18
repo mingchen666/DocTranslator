@@ -1,58 +1,66 @@
 <template>
-  <el-form ref="formRef" :model="form" :rules="rules" label-width="120px" label-position="top">
-    <!-- 服务商选择 -->
-    <el-form-item label="服务商" prop="provider">
-      <el-radio-group v-model="form.provider">
-        <el-radio-button label="openai">OpenAI</el-radio-button>
-        <el-radio-button label="member" :disabled="!isVIP">DocTranslator 会员</el-radio-button>
-      </el-radio-group>
-    </el-form-item>
-
-    <!-- OpenAI配置 -->
-    <template v-if="form.provider === 'openai'">
-      <el-form-item prop="api_url">
-        <template #label>
-          <span class="label-with-ad">
-            API地址
-            <el-tag
-              size="mini"
-              type="warning"
-              style="margin-left: 8px; cursor: pointer; font-size: medium"
-              @click="visitSite"
-            >
-              🔥 推荐使用在线api中转站
-            </el-tag>
-          </span>
-        </template>
-        <el-input v-model="form.api_url" placeholder="https://api.ezworkapi.top" clearable />
+  <div class="settings-container">
+    <!-- VIP Member Card -->
+    <VipCard v-if="isVIP"></VipCard>
+    <el-form
+      v-else
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-width="120px"
+      label-position="top"
+    >
+      <!-- 服务商选择 -->
+      <el-form-item label="服务商" prop="provider">
+        <el-radio-group v-model="form.provider">
+          <el-radio-button label="openai" :disabled="isVIP">OpenAI</el-radio-button>
+          <el-radio-button label="member" :disabled="!isVIP">DocTranslator 会员</el-radio-button>
+        </el-radio-group>
       </el-form-item>
-
-      <el-form-item label="API密钥" prop="api_key">
-        <el-input v-model="form.api_key" placeholder="输入您的API Key" show-password clearable />
+      <!-- OpenAI配置 -->
+      <template v-if="form.provider === 'openai'">
+        <el-form-item prop="api_url">
+          <template #label>
+            <span class="label-with-ad">
+              API地址
+              <el-tag
+                size="mini"
+                type="warning"
+                style="margin-left: 8px; cursor: pointer; font-size: medium"
+                @click="visitSite"
+              >
+                🔥 推荐使用在线api中转站
+              </el-tag>
+            </span>
+          </template>
+          <el-input v-model="form.api_url" placeholder="https://api.ezworkapi.top" clearable />
+        </el-form-item>
+        <el-form-item label="API密钥" prop="api_key">
+          <el-input v-model="form.api_key" placeholder="输入您的API Key" show-password clearable />
+        </el-form-item>
+      </template>
+      <!-- 操作按钮 -->
+      <el-form-item>
+        <div class="form-actions">
+          <el-button type="primary" @click="submitForm" :loading="saving"> 保存设置 </el-button>
+          <el-button
+            :type="testButtonType"
+            @click="testConnection"
+            :loading="testing"
+            :disabled="!canTestConnection"
+          >
+            <template v-if="testResult === 'success'">
+              <el-icon class="success-icon"><CircleCheck /></el-icon> 连接正常
+            </template>
+            <template v-else-if="testResult === 'fail'">
+              <el-icon class="error-icon"><CircleClose /></el-icon> 连接失败
+            </template>
+            <template v-else> 检查连接 </template>
+          </el-button>
+        </div>
       </el-form-item>
-    </template>
-
-    <!-- 操作按钮 -->
-    <el-form-item>
-      <div class="form-actions">
-        <el-button type="primary" @click="submitForm" :loading="saving"> 保存设置 </el-button>
-        <el-button
-          :type="testButtonType"
-          @click="testConnection"
-          :loading="testing"
-          :disabled="!canTestConnection"
-        >
-          <template v-if="testResult === 'success'">
-            <el-icon class="success-icon"><CircleCheck /></el-icon> 连接正常
-          </template>
-          <template v-else-if="testResult === 'fail'">
-            <el-icon class="error-icon"><CircleClose /></el-icon> 连接失败
-          </template>
-          <template v-else> 检查连接 </template>
-        </el-button>
-      </div>
-    </el-form-item>
-  </el-form>
+    </el-form>
+  </div>
 </template>
 
 <script setup>
@@ -60,8 +68,11 @@ import { ref, computed, onMounted } from 'vue'
 import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { checkOpenAI } from '@/api/trans'
 import { ElMessage } from 'element-plus'
+import VipCard from './VipCard.vue'
 import { useTranslateStore } from '@/store/translate'
+import { useUserStore } from '@/store/user'
 const translateStore = useTranslateStore()
+const userStore = useUserStore()
 
 const formRef = ref(null)
 const form = ref({
@@ -70,7 +81,7 @@ const form = ref({
   api_key: ''
 })
 
-const isVIP = computed(() => useTranslateStore().isVIP)
+const isVIP = computed(() => userStore.isVip)
 const saving = ref(false)
 const testing = ref(false)
 const testResult = ref('')
@@ -145,6 +156,13 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+/* 基础设置 */
+.settings-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  // padding: 0 15px;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;

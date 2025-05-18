@@ -29,7 +29,7 @@ export const useTranslateStore = defineStore('translate-settings', () => {
     app_key: '',
     from_lang: 'auto',
     to_lang: 'zh',
-    needIntervene: true // 是否使用术语库
+    needIntervene: false // 是否使用术语库
   })
 
   // 谷歌翻译设置
@@ -110,11 +110,11 @@ export const useTranslateStore = defineStore('translate-settings', () => {
   const getCurrentServiceForm = computed(() => {
     switch (currentService.value) {
       case 'ai':
-        return { ...common.value, ...aiServer.value, server: 'openai' };
+        return { ...aiServer.value, ...common.value, server: 'openai' };
       case 'baidu':
-        return { ...common.value, ...baidu.value, server: 'baidu' };
+        return { ...baidu.value, ...common.value, server: 'baidu' };
       case 'google':
-        return { ...common.value, ...google.value, server: 'google' };
+        return { ...google.value, ...common.value, server: 'google' };
       default:
         return {}; // 默认返回空对象
     }

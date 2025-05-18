@@ -222,7 +222,7 @@ import Filing from '@/components/filing.vue'
 import RetryIcon from '@/components/icons/RetryIcon.vue'
 import DeleteIcon from '../../components/icons/DeleteIcon.vue'
 import DownloadIcon from '../../components/icons/DownloadIcon.vue'
-import { reactive, ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 const API_URL = import.meta.env.VITE_API_URL
 import {
   checkPdf,
@@ -250,9 +250,7 @@ import { useUserStore } from '@/store/user'
 const userStore = useUserStore()
 const translateStore = useTranslateStore()
 // 当前翻译服务 computed计算
-const translateService = computed(() => {
-  return userStore.currentService
-})
+const currentServiceType = computed(() => translateStore.currentService)
 const uploaded = ref(false)
 const translated = ref(false)
 // 翻译数据表格加载状态
@@ -288,11 +286,14 @@ const form = ref({
   files: [],
   file_name: '',
   api_url: 'https://api.openai.com',
-  api_key: '',
+  api_key: null,
+  app_key: null,
+  app_id: null,
   model: '',
   backup_model: '',
   langs: [],
   lang: '',
+  to_lang: null,
   type: [],
   uuid: '',
   prompt:
@@ -487,35 +488,81 @@ function process(uuid) {
 
 // 启动翻译-----立即翻译
 async function handleTranslate(transform) {
+  // 首先再次赋值，防止没有更新
+  form.value = { ...form.value, ...translateStore.getCurrentServiceForm}
   // 1.判断是否上传文件
-  if (form.value.files.length <= 0) {
-    ElMessage({
-      message: '请上传文件',
-      type: 'error'
-    })
-    return
-  }
+  // if (form.value.files.length <= 0) {
+  //   ElMessage({
+  //     message: '请上传文件',
+  //     type: 'error'
+  //   })
+  //   return
+  // }
+  if (currentServiceType.value == 'ai') {
+    // 2.检查翻译设置是否完整
+    if (form.value.server === '') {
+      ElMessage({
+        message: '请选择翻译服务提供商',
+        type: 'error'
+      })
+      return
+    }
 
-  // 2.检查翻译设置是否完整
-  if (
-    form.value.server == '' ||
-    form.value.type == '' ||
-    form.value.model == '' ||
-    form.value.langs.length < 1 ||
-    form.value.type.length < 1 ||
-    form.value.prompt == '' ||
-    form.value.api_key == ''
-  ) {
-    ElMessage({
-      message: '请检查翻译设置',
-      type: 'error'
-    })
-    return
-  }
+    if (form.value.type === '') {
+      ElMessage({
+        message: '请选择翻译类型',
+        type: 'error'
+      })
+      return
+    }
 
-  console.log('翻译表单：', form.value)
+    if (form.value.model === '') {
+      ElMessage({
+        message: '请选择翻译模型',
+        type: 'error'
+      })
+      return
+    }
+
+    if (form.value.langs.length < 1) {
+      ElMessage({
+        message: '请选择目标语言',
+        type: 'error'
+      })
+      return
+    }
+
+    if (form.value.prompt === '') {
+      ElMessage({
+        message: '请输入翻译提示词',
+        type: 'error'
+      })
+      return
+    }
+    // 翻译服务 检查api密钥是否为空 会员不需要提供key
+    if (form.value.api_key === '' && !userStore.isVip) {
+      ElMessage({
+        message: '请输入API密钥',
+        type: 'error'
+      })
+      return
+    }
+  } else if (currentServiceType.value == 'baidu') {
+    if (form.value.app_key === '' || form.value.app_id === '' || form.value.to_lang === '') {
+      ElMessage({
+        message: '请填写百度翻译相关信息!',
+        type: 'error'
+      })
+      return
+    }
+  }
 
   // 3.提交翻译任务
+  // 如果是会员，不需要提供api和key
+  form.value.api_key = userStore.isVip ? '' : form.value.api_key
+  form.value.api_url = userStore.isVip ? '' : form.value.api_url
+
+  console.log('翻译表单：', form.value)
   const res = await transalteFile(form.value)
   if (res.code == 200) {
     ElMessage({
@@ -793,7 +840,7 @@ async function downAllTransFile() {
 onMounted(() => {
   if (userStore.token) {
     getTranslatesData(1)
-    form.value = { ...form.value, ...translateStore.getCurrentServiceForm }
+    form.value = { ...form.value, ...translateStore.getCurrentServiceForm}
   }
 })
 </script>

@@ -47,7 +47,7 @@ def register_routes(api):
     api.add_resource(SendChangeCodeResource, '/api/change/send')
     api.add_resource(EmailChangePasswordResource, '/api/change/email')
     api.add_resource(StorageInfoResource, '/api/storage')
-    api.add_resource(UserInfoResource, '/api/info')
+    api.add_resource(UserInfoResource, '/api/user-info')
 
     api.add_resource(FileUploadResource, '/api/upload')
     api.add_resource(FileDeleteResource, '/api/delFile')

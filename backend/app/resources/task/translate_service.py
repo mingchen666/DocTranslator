@@ -96,10 +96,13 @@ class TranslateEngine:
             'target_file': task.target_filepath,  # 目标文件绝对路径
             'api_url': task.api_url,
             'api_key': task.api_key,  # 新增API密钥字段
+            # 机器翻译相关
+            'app_id':task.app_id,
+            'app_key': task.app_key,
             'type': task.type,
             'lang': task.lang,
+            'server': task.server,
             'run_complete': True,  # 默认设为True
-            # 以下是可能需要添加的额外字段
             'prompt': task.prompt,
             'model': task.model,
             'backup_model': task.backup_model,
@@ -107,7 +110,6 @@ class TranslateEngine:
             'prompt_id': task.prompt_id,
             'extension': os.path.splitext(task.origin_filepath)[1]  # 动态获取文件扩展名
         }
-
 
         # 加载术语对照表
         if task.comparison_id and task.comparison_id != 0:
@@ -165,5 +167,4 @@ class TranslateEngine:
         if prompt and prompt.content:
             return prompt.content
         return
-
 

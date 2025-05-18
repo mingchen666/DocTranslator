@@ -85,8 +85,8 @@ const storagePercentage = computed(() => {
 
 // 格式化存储显示
 const formattedStorage = computed(() => {
-  // const MB = userInfo.value.storage / (1024 * 1024)
-  const MB = 45895785 / (1024 * 1024)
+  const MB = userInfo.value.storage / (1024 * 1024)
+  // const MB = 45895785 / (1024 * 1024)
   return MB.toFixed(2) + ' MB'
 })
 

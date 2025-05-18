@@ -25,6 +25,35 @@ TRANSLATE_SETTINGS = {
     "prompt_template": "请将以下内容翻译为{target_lang}"
 }
 
+# 百度翻译语言映射字典
+LANG_CODE_TO_CHINESE = {
+    'zh': '中文',
+    'en': '英语',
+    'ja': '日语',
+    'ko': '韩语',
+    'fr': '法语',
+    'de': '德语',
+    'es': '西班牙语',
+    'ru': '俄语',
+    'ar': '阿拉伯语',
+    'it': '意大利语',
+
+    # 兼容可能出现的全称
+    'chinese': '中文',
+    'english': '英语',
+    'japanese': '日语',
+    'korean': '韩语',
+    '中文': '中文',  # 防止重复转换
+    '汉语': '中文'
+}
+
+
+def get_unified_lang_name(lang_code):
+    """统一返回语言的中文名称
+    """
+    # 统一转为小写处理
+    lower_code = str(lang_code).lower()
+    return LANG_CODE_TO_CHINESE.get(lower_code, lang_code)  # 找不到时返回原值
 
 class TranslateStartResource(Resource):
     @jwt_required()
@@ -76,30 +105,49 @@ class TranslateStartResource(Resource):
             if not translate:
                 return APIResponse.error("未找到对应的翻译记录", 404)
 
+            # 从系统里面获取api_setting 分组的配置
+            api_settings = Setting.query.filter(
+                Setting.group == 'api_setting',  # 只查询 api_setting 分组
+                Setting.deleted_flag == 'N'  # 未删除的记录
+            ).all()
+            # 转换成字典
+            translate_settings = {}
+            for setting in api_settings:
+                translate_settings[setting.alias] = setting.value
             # 更新翻译记录
+            translate.server = data.get('server', 'openai')
             translate.origin_filename = data['file_name']
             translate.target_filepath = target_abs_path  # 存储翻译结果的绝对路径
-            translate.lang = data['lang']
+
             translate.model = data['model']
-            translate.server = data['server']
-            translate.app_key = data.get('app_key', '')
-            translate.app_id = data.get('app_id', '')
+            translate.app_key = data.get('app_key', None)
+            translate.app_id = data.get('app_id', None)
             translate.backup_model = data['backup_model']
             translate.type = translate_type
             translate.prompt = data['prompt']
             translate.threads = int(data['threads'])
-            translate.api_url = data.get('api_url', '')
-            translate.api_key = data.get('api_key', '')
+            # 会员用户下使用系统的api_url和api_key
+            if customer.level == 'vip':
+                translate.api_url = translate_settings.get('api_url', '').strip()
+                translate.api_key = translate_settings.get('api_key', '').strip()
+            else:
+                translate.api_url = data.get('api_url', '')
+                translate.api_key = data.get('api_key', '')
             translate.backup_model = data.get('backup_model', '')
             translate.origin_lang = data.get('origin_lang', '')
             translate.size = data.get('size', 0)  # 更新文件大小
             # 获取 comparison_id 并转换为整数
-            comparison_id = data.get('comparison_id', '0')  # 默认值为 '0'
+            comparison_id = data.get('comparison_id', 0)  # 默认值为 '0'
             translate.comparison_id = int(comparison_id) if comparison_id else None
             prompt_id = data.get('prompt_id', '0')
             translate.prompt_id = int(prompt_id) if prompt_id else None
             translate.doc2x_flag = data.get('doc2x_flag', 'N')
             translate.doc2x_secret_key = data.get('doc2x_secret_key', '')
+            if data['server'] == 'baidu':
+                translate.lang = data['to_lang']
+                translate.comparison_id = 1 if data.get('needIntervene', False) else None  # 使用术语库
+            else:
+                translate.lang = data['lang']
             # 使用 UTC 时间并格式化
             # current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
             # translate.created_at = current_time
@@ -121,7 +169,6 @@ class TranslateStartResource(Resource):
             db.session.rollback()
             current_app.logger.error(f"翻译任务启动失败: {str(e)}", exc_info=True)
             return APIResponse.error("任务启动失败", 500)
-
 
 
 # 修复时间显示
@@ -197,7 +244,7 @@ class TranslateListResource(Resource):
                 'end_at': end_at_str,  # 完成时间
                 'start_at': t.start_at.strftime('%Y-%m-%d %H:%M:%S') if t.start_at else "--",
                 # 开始时间
-                'lang': t.lang,
+                'lang': get_unified_lang_name(t.lang), # 标准输出语言中文名称
                 'target_filepath': t.target_filepath,
                 'uuid': t.uuid
             })
@@ -279,10 +326,10 @@ class TranslateSettingResource(Resource):
         config.setdefault('models', ['gpt-3.5-turbo', 'gpt-4'])
         config.setdefault('default_model', 'gpt-3.5-turbo')
         config.setdefault('default_backup', 'gpt-3.5-turbo')
-        config.setdefault('api_url', '')
+        config.setdefault('api_url', 'https://api.ezworkapi.top/v1')
         config.setdefault('api_key', '')
         config.setdefault('prompt_template', '请将以下内容翻译为{target_lang}')
-        config.setdefault('max_threads', 10)
+        config.setdefault('max_threads', 5)
 
         return config
 

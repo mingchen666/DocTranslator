@@ -14,7 +14,7 @@
     </div>
 
     <el-form ref="transformRef" :model="settingsForm" label-width="100px">
-      <el-form-item label="翻译服务" required width="100%">
+      <el-form-item v-if="!isVIP" label="翻译服务" required width="100%">
         <el-select v-model="settingsForm.currentService" placeholder="请选择翻译服务">
           <el-option value="ai" label="AI翻译"></el-option>
           <el-option value="baidu" label="百度翻译"></el-option>
@@ -67,17 +67,7 @@
             />
           </el-select>
         </el-form-item>
-        <!-- 译文形式 -->
-        <el-form-item label="译文形式" required>
-          <el-cascader
-            v-model="settingsForm.common.type"
-            :options="typeOptions"
-            placeholder="选择译文形式"
-            style="width: 100%"
-            :props="{ expandTrigger: 'hover' }"
-            clearable
-          />
-        </el-form-item>
+
         <!-- 提示语选择 -->
         <el-form-item label="选择提示语" required width="100%">
           <el-select
@@ -146,7 +136,7 @@
           </el-select>
         </el-form-item>
         <!-- 是否使用术语库 -->
-        <el-form-item label="使用术语库">
+        <el-form-item label="是否使用术语库">
           <el-switch
             v-model="settingsForm.baidu.needIntervene"
             inline-prompt
@@ -185,7 +175,17 @@
 
       <!-- 通用设置 -->
       <el-divider />
-
+        <!-- 译文形式 -->
+        <el-form-item label="译文形式" required>
+          <el-cascader
+            v-model="settingsForm.common.type"
+            :options="typeOptions"
+            placeholder="选择译文形式"
+            style="width: 100%"
+            :props="{ expandTrigger: 'hover' }"
+            clearable
+          />
+        </el-form-item>
       <el-form-item label="线程数" required width="100%">
         <el-input-number
           v-model="settingsForm.aiServer.threads"
@@ -223,6 +223,9 @@ import { useSettingsStore } from '@/store/settings'
 import { ElMessage } from 'element-plus'
 import { prompt_my, comparison_my } from '@/api/corpus'
 import { checkOpenAI, checkDocx } from '@/api/trans'
+import { useUserStore } from '@/store/user'
+const userStore = useUserStore()
+const isVIP = computed(() => userStore.isVip)
 const translateStore = useTranslateStore()
 const settingsStore = useSettingsStore()
 const formSetShow = ref(false)
@@ -522,13 +525,12 @@ const formConfim = (formEl) => {
 
       if (settingsForm.value.currentService === 'ai') {
         translateStore.updateAIServerSettings(settingsForm.value.aiServer)
-      } else if (settingsForm.value.currentService === 'baidu') {
+      } else if (settingsForm.value.currentService === 'baidu') {   
         translateStore.updateBaiduSettings(settingsForm.value.baidu)
       } else if (settingsForm.value.currentService === 'google') {
         translateStore.updateGoogleSettings(settingsForm.value.google)
       }
-      console.log('settingsForm.value.common', settingsForm.value.common)
-
+      // console.log('settingsForm.value.common', settingsForm.value.baidu)
       translateStore.updateCommonSettings(settingsForm.value.common)
       ElMessage.success('设置保存成功')
       formSetShow.value = false

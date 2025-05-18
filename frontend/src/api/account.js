@@ -24,7 +24,7 @@ export function storage() {
  */
 export function authInfo() {
     return request({
-        url: '/api/info',
+        url: '/api/user-info',
         method: 'GET',
     });
 }
