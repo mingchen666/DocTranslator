@@ -43,7 +43,7 @@
           <div class="t">
             <div class="t_left">
               <span>翻译任务列表</span>
-              <div class="tips" v-if="editionInfo == 'community'">
+              <div class="tips" v-if="false">
                 <el-icon><SuccessFilled /></el-icon>
                 已累计为用户成功翻译文件
                 <span>{{ transCount }}</span>
@@ -71,7 +71,7 @@
             </div>
           </div>
           <!-- 存储空间展示 -->
-          <div class="t_right" v-if="editionInfo !== 'community'">
+          <div class="t_right">
             <span class="storage">存储空间({{ storageTotal }}M)</span>
             <el-progress
               class="translated-process"
@@ -89,11 +89,11 @@
               >全部删除</el-button
             >
           </div>
-          <div class="t_right" v-else>
+          <!-- <div class="t_right">
             <el-button class="pc_show" @click="delAllTransFile" v-if="translatesData.length > 0"
               >全部删除</el-button
             >
-          </div>
+          </div> -->
         </div>
         <!-- 翻译列表表格数据 -->
         <div class="table_box" v-loading="isLoadingData" element-loading-text="加载中...">
@@ -222,7 +222,7 @@ import Filing from '@/components/filing.vue'
 import RetryIcon from '@/components/icons/RetryIcon.vue'
 import DeleteIcon from '../../components/icons/DeleteIcon.vue'
 import DownloadIcon from '../../components/icons/DownloadIcon.vue'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 const API_URL = import.meta.env.VITE_API_URL
 import {
   checkPdf,
@@ -241,7 +241,6 @@ import uploadPng from '@assets/upload.png'
 import loadingPng from '@assets/loading.gif'
 import finishPng from '@assets/finish.png'
 import completedPng from '@assets/completed.png'
-import { store } from '@/store'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // import hash from 'object-hash'
 // import request from '@/utils/request'
@@ -329,83 +328,6 @@ function flhandleFileListChange(file, fileList) {
   fileListShow.value = fileList.length > 0 ? true : false
 }
 
-function handleTranslate1() {
-  // 1.首先检查是否上传了文件
-  if (form.value.files.length <= 0) {
-    ElMessage({
-      message: '请上传文件',
-      type: 'error'
-    })
-    return
-  }
-  // 2.校验表单设置
-  if (
-    form.value.server == '' ||
-    form.value.type == '' ||
-    form.value.model == '' ||
-    form.value.langs.length < 1 ||
-    form.value.type.length < 1 ||
-    form.value.prompt == '' ||
-    form.value.limit == ''
-  )
-    // 清空上传文件列表
-    uploadRef.value.clearFiles()
-  fileListShow.value = false
-
-  let langs = []
-  if (!Array.isArray(form.value.langs)) {
-    langs = [form.value.langs]
-  } else {
-    langs = form.value.langs
-  }
-  result.value = {}
-
-  form.value.files.forEach((file) => {
-    form.value.file_name = file.file_name
-    form.value.file_path = file.file_path
-    langs.forEach((lang) => {
-      form.value.lang = lang
-      form.timestamp = new Date().getTime()
-      let uuid = file.uuid // 直接使用上传成功后返回的 uuid
-      form.value.uuid = uuid
-      translating[uuid] = true
-
-      // 判断处理文档类型
-      let fileArr = file.file_name.split('.')
-      let fileType = fileArr[fileArr.length - 1]
-      let fileType_f = ''
-      if (fileType == 'docx' || fileType == 'xlsx' || fileType == 'pptx') {
-        fileType_f = fileType
-      } else {
-        fileType_f = 'other'
-      }
-      result.value[uuid] = {
-        file_name: file.file_name,
-        file_path: file.file_path,
-        file_type: fileType_f,
-        uuid: uuid,
-        lang: lang,
-        percentage: 0,
-        disabled: true
-      }
-      // 启动翻译任务
-      transalteFile(form.value)
-        .then((data) => {
-          // 开启任务查询
-          process(uuid)
-        })
-        .catch((data) => {
-          translating[uuid] = false
-        })
-    })
-  })
-
-  // 隐藏暂无数据
-  no_data.value = false
-  // 循环结束，删除
-  form.value.files = []
-}
-
 // 进度查询 status: "done"
 function process(uuid) {
   // // 检查是否已经完成或失败
@@ -456,6 +378,9 @@ function process(uuid) {
           // result.value[uuid]['target_filepath'] = res.data.url
 
           // 任务完成时，更新翻译任务列表
+          ElMessage.success({
+            message: '文件翻译成功！'
+          })
           getTranslatesData(1)
         } else {
           // 如果未完成，继续调用 process 函数
@@ -468,7 +393,6 @@ function process(uuid) {
           type: 'error',
           duration: 5000
         })
-
         // 任务失败时，更新翻译任务列表
         getTranslatesData(1)
       }
@@ -476,11 +400,10 @@ function process(uuid) {
     .catch((error) => {
       // 处理网络错误或其他异常
       ElMessage({
-        message: 'An error occurred while processing the translation.',
+        message: '翻译过程失败.',
         type: 'error',
         duration: 5000
       })
-
       // 任务失败时，更新翻译任务列表
       getTranslatesData(1)
     })
@@ -489,7 +412,7 @@ function process(uuid) {
 // 启动翻译-----立即翻译
 async function handleTranslate(transform) {
   // 首先再次赋值，防止没有更新
-  form.value = { ...form.value, ...translateStore.getCurrentServiceForm}
+  form.value = { ...form.value, ...translateStore.getCurrentServiceForm }
   // 1.判断是否上传文件
   // if (form.value.files.length <= 0) {
   //   ElMessage({
@@ -639,6 +562,8 @@ function uploadSuccess(res, file) {
     form.value.size = file.size
     // 获取到uuid
     form.value.uuid = res.data.uuid
+    // 更新存储空间
+    getStorageInfo()
   } else {
     ElMessage({
       message: res.message,
@@ -676,6 +601,8 @@ function delUploadFile(file, files) {
           message: '文件删除成功',
           type: 'success'
         })
+        // 更新存储空间
+        getStorageInfo()
       } else {
         ElMessage({
           message: '文件删除失败，请稍后再试',
@@ -756,31 +683,34 @@ function getStorageInfo() {
   })
 }
 
-function delTransFile(id, index) {
-  ElMessageBox.confirm('是否确定要删除？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    //演示版执行
-    if (editionInfo.value == 'community') {
-      translatesData.value.splice(index, 1)
-      localStorage.setItem('TranslatesList', JSON.stringify(translatesData.value))
+async function delTransFile(id, index) {
+  try {
+    await ElMessageBox.confirm('是否确定要删除？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    isLoadingData.value = true
+    translatesData.value.splice(index, 1)
+    if (translatesData.value.length < 1) {
+      no_data.value = true
+    }
+
+    const res = await delTranslate(id)
+    if (res.code == 200) {
+      translatesData.value = translatesData.value.filter((item) => item.id != id)
       if (translatesData.value.length < 1) {
         no_data.value = true
       }
-    } else {
-      delTranslate(id).then((data) => {
-        if (data.code == 200) {
-          translatesData.value = translatesData.value.filter((item) => item.id != id)
-          if (translatesData.value.length < 1) {
-            no_data.value = true
-          }
-          getStorageInfo()
-        }
-      })
+      isLoadingData.value = false
+      ElMessage.success('删除成功')
+      getStorageInfo()
     }
-  })
+  } catch (error) {
+    // 用户点击取消或请求失败
+    console.log('删除操作已取消或失败:', error)
+    isLoadingData.value = false
+  }
 }
 
 //全部删除的方法
@@ -790,20 +720,16 @@ function delAllTransFile() {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    //演示版执行
-    if (editionInfo.value == 'community') {
-      translatesData.value = []
-      no_data.value = true
-      localStorage.setItem('TranslatesList', JSON.stringify(translatesData.value))
-    } else {
-      delAllTranslate().then((data) => {
-        if (data.code == 200) {
-          translatesData.value = []
-          no_data.value = true
-          getStorageInfo()
-        }
-      })
-    }
+    translatesData.value = []
+    no_data.value = true
+
+    delAllTranslate().then((data) => {
+      if (data.code == 200) {
+        translatesData.value = []
+        no_data.value = true
+        getStorageInfo()
+      }
+    })
   })
 }
 
@@ -840,7 +766,7 @@ async function downAllTransFile() {
 onMounted(() => {
   if (userStore.token) {
     getTranslatesData(1)
-    form.value = { ...form.value, ...translateStore.getCurrentServiceForm}
+    form.value = { ...form.value, ...translateStore.getCurrentServiceForm }
   }
 })
 </script>

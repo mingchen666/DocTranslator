@@ -4,8 +4,8 @@ from app.resources.admin.customer import AdminCustomerListResource, AdminCreateC
     CustomerStatusResource
 from app.resources.admin.image import AdminImageResource
 from app.resources.admin.settings import AdminSettingNoticeResource, AdminSettingApiResource, \
-     AdminSettingSiteResource, AdminInfoSettingOtherResource, \
-    AdminEditSettingOtherResource
+    AdminSettingSiteResource, AdminInfoSettingOtherResource, \
+    AdminEditSettingOtherResource, SystemStorageResource
 from app.resources.admin.translate import AdminTranslateListResource, \
     AdminTranslateBatchDeleteResource, AdminTranslateRestartResource, AdminTranslateDeteleResource, \
     AdminTranslateStatisticsResource, AdminTranslateDownloadResource, \
@@ -131,7 +131,8 @@ def register_routes(api):
     api.add_resource(AdminEditSettingOtherResource, '/api/admin/setting/other')
     api.add_resource(AdminSettingSiteResource, '/api/admin/setting/site')
 
-
+    # 系统文件存储管理
+    api.add_resource(SystemStorageResource, '/api/admin/system/storage')
     print("✅ 路由配置完成")  # 添加调试输出
     # api.add_resource(TodoListResource, '/todos')
     # api.add_resource(TodoResource, '/todos/<int:todo_id>')

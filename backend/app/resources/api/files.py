@@ -43,7 +43,7 @@ class FileUploadResource(Resource):
 
         # 验证存储空间current_app.config['MAX_USER_STORAGE']
         if customer.storage + file_size > customer.total_storage:
-            return APIResponse.error('存储空间不足', 403)
+            return APIResponse.error('用户存储空间不足', 403)
 
         try:
             # 生成存储路径
@@ -75,6 +75,7 @@ class FileUploadResource(Resource):
                 target_filepath='',  # 目标文件路径暂为空
                 status='none',  # 初始状态为 none
                 origin_filesize=file_size,
+                size=file_size,
                 md5=file_md5,
                 created_at=datetime.utcnow()
             )
@@ -161,6 +162,9 @@ class FileDeleteResource(Resource):
             # 删除物理文件
             if os.path.exists(file_path):
                 os.remove(file_path)
+                # 更新用户存储空间
+                customer = Customer.query.get(get_jwt_identity())
+                customer.storage -= translate_record.origin_filesize
             else:
                 current_app.logger.warning(f"文件不存在：{file_path}")
 

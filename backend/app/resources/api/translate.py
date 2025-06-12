@@ -58,7 +58,7 @@ def get_unified_lang_name(lang_code):
 class TranslateStartResource(Resource):
     @jwt_required()
     def post(self):
-        """启动翻译任务（支持绝对路径和多参数）[^1]"""
+        """启动翻译任务（支持绝对路径和多参数）"""
         data = request.form
         required_fields = [
             'server', 'model', 'lang', 'uuid',
@@ -71,12 +71,19 @@ class TranslateStartResource(Resource):
 
         # 验证OpenAI配置
         if data['server'] == 'openai' and not all(k in data for k in ['api_url', 'api_key']):
-            return APIResponse.error("OpenAI服务需要API地址和密钥", 400)
+            return APIResponse.error("AI翻译需要API地址和密钥", 400)
 
+        # if data['server'] == 'openai':
+        #     return APIResponse.error("Doc2x服务需要密钥", 400)
+        # elif data['server'] == 'baidu':
+        #     return APIResponse.error("Doc2x服务需要密钥", 400)
         try:
             # 获取用户信息
             user_id = get_jwt_identity()
             customer = Customer.query.get(user_id)
+            # # 判断用户是否是会员，会员不需要填写api，key
+            # if customer.level != 'vip' and not data['api_key']:
+            #     return APIResponse.error("缺少key !", 400)
             if customer.status == 'disabled':
                 return APIResponse.error("用户状态异常", 403)
 
@@ -375,7 +382,7 @@ class TranslateDeleteResource(Resource):
         customer.storage -= translate.size
         db.session.commit()
 
-        return APIResponse.success(message='记录已标记为删除')
+        return APIResponse.success(message='删除成功!')
 
 
 class TranslateDownloadResource(Resource):
@@ -486,13 +493,30 @@ class TranslateTestResource(Resource):
 class TranslateDeleteAllResource(Resource):
     @jwt_required()
     def delete(self):
-        """删除用户所有翻译记录[^2]"""
+        """删除用户所有翻译记录并更新存储空间"""
+        customer_id = get_jwt_identity()
+
+        # 先查询需要删除的记录及其总大小
+        records_to_delete = Translate.query.filter_by(
+            customer_id=customer_id,
+            deleted_flag='N'
+        ).all()
+
+        total_size = sum(record.size for record in records_to_delete)
+
+        # 执行批量删除
         Translate.query.filter_by(
-            customer_id=get_jwt_identity(),
+            customer_id=customer_id,
             deleted_flag='N'
         ).delete()
+
+        # 更新用户存储空间
+        customer = Customer.query.get(customer_id)
+        if customer:
+            customer.storage = max(0, customer.storage - total_size)
+
         db.session.commit()
-        return APIResponse.success(message="删除成功")
+        return APIResponse.success(message="全部文件删除成功!")
 
 
 class TranslateFinishCountResource(Resource):

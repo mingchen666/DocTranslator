@@ -34,4 +34,6 @@ even/
 **/__pycache__/
 *.py[cod]
 
-
+.gitignore
+gitignore
+更新.txt
