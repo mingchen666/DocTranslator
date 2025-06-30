@@ -1,14 +1,14 @@
 <template>
   <!-- 版权信息 -->
   <div class="filing">
-    <p>© 2025 DocTranslator. 保留所有权利</p>
+    <p>© 2025 DocTranslator 1.3.4 保留所有权利</p>
   </div>
 </template>
 
 <style scoped lang="scss">
 .filing {
   width: 100%;
-  font-size: 12px;
+  font-size: 14px;
   text-align: center;
   padding: 20px 0;
   box-sizing: border-box;

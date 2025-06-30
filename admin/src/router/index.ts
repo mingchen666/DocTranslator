@@ -142,6 +142,16 @@ export const constantRoutes: RouteRecordRaw[] = [
           elIcon: "lock",
           affix: true
         }
+      },
+      {
+        path: "file-storage",
+        component: () => import("@/views/setting/file.vue"),
+        name: "FileStorage",
+        meta: {
+          title: "文件存储管理",
+          elIcon: "files",
+          affix: true
+        }
       }
     ]
   }

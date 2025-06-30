@@ -7,7 +7,7 @@ defineOptions({
   // 命名当前组件
   name: "接口配置"
 })
-
+const loading = ref(false)
 const setting = ref({
   prompt: "",
   threads: "",
@@ -21,10 +21,12 @@ const rules = {
   threads: [{ required: true, message: "请填写默认线程数", trigger: "blur" }]
 }
 
-onMounted(() => {
-  getOtherSettingData().then((data) => {
+onMounted(async () => {
+  loading.value = true
+  await getOtherSettingData().then((data) => {
     setting.value = data.data
   })
+  loading.value = false
 })
 
 function onSubmit(settingForm: FormInstance | null) {
@@ -71,7 +73,7 @@ function onSubmit(settingForm: FormInstance | null) {
 
 <template>
   <div class="app-container">
-    <el-card shadow="never">
+    <el-card shadow="never" v-loading="loading" :element-loading-text="'加载中...'">
       <el-form class="settingForm" ref="settingForm" :model="setting" label-position="top" :rules="rules">
         <el-form-item label="默认提示语" required prop="prompt">
           <el-input type="textarea" resize="none" :rows="5" v-model="setting.prompt" />

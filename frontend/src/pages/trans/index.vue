@@ -577,7 +577,7 @@ function uploadSuccess(res, file) {
 
 function uploadError(data) {
   ElMessage({
-    message: '文件上传失败，请检查文件是否超过30M',
+    message: `上传失败，${JSON.parse(data.message).message}`,
     type: 'error'
   })
 }

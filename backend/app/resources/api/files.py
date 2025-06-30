@@ -18,6 +18,7 @@ class FileUploadResource(Resource):
     @jwt_required()
     def post(self):
         """文件上传接口"""
+        # 验证文件存在
         if 'file' not in request.files:
             return APIResponse.error('未选择文件', 400)
         file = request.files['file']
@@ -34,7 +35,7 @@ class FileUploadResource(Resource):
         # 验证文件大小
         if not self.validate_file_size(file.stream):
             return APIResponse.error(
-                f"文件大小超过{current_app.config['MAX_FILE_SIZE'] // (1024 * 1024)}MB限制", 400)
+                f"文件大小超过{current_app.config['MAX_FILE_SIZE'] // (1024 * 1024)}MB", 400)
 
         # 获取用户存储信息
         user_id = get_jwt_identity()
@@ -141,7 +142,6 @@ class FileUploadResource(Resource):
 
 
 
-
 class FileDeleteResource(Resource):
     @jwt_required()
     def post(self):
@@ -178,3 +178,5 @@ class FileDeleteResource(Resource):
             db.session.rollback()
             current_app.logger.error(f"文件删除失败：{str(e)}")
             return APIResponse.error('文件删除失败', 500)
+
+

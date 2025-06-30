@@ -16,30 +16,6 @@ from sqlalchemy import func
 from datetime import datetime
 
 
-class MyComparisonListResource1111(Resource):
-    @jwt_required()
-    def get(self):
-        """获取我的术语表列表[^1]"""
-        parser = reqparse.RequestParser()
-        parser.add_argument('page', type=int, default=1)
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('search', type=str)
-        args = parser.parse_args()
-
-        query = Comparison.query.filter_by(customer_id=get_jwt_identity())
-        if args['search']:
-            query = query.filter(Comparison.title.ilike(f"%{args['search']}%"))
-
-        pagination = query.paginate(page=args['page'], per_page=args['limit'], error_out=False)
-        comparisons = [comparison.to_dict() for comparison in pagination.items]
-
-        return APIResponse.success({
-            'data': comparisons,
-            'total': pagination.total,
-            'current_page': pagination.page,
-            'per_page': pagination.per_page
-        })
-
 
 class MyComparisonListResource(Resource):
     @jwt_required()
@@ -492,9 +468,9 @@ class ExportComparisonResource(Resource):
 
         # 查询术语表
         comparison = Comparison.query.get_or_404(id)
-
+        print(comparison.customer_id, current_user_id)
         # 检查术语表是否共享或属于当前用户
-        if comparison.share_flag != 'Y' and comparison.user_id != current_user_id:
+        if comparison.share_flag == 'Y' or comparison.customer_id != int(current_user_id):
             return {'message': '术语表未共享或无权限访问', 'code': 403}, 403
 
         # 解析术语内容

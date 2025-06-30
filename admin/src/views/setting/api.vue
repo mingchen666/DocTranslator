@@ -7,7 +7,7 @@ defineOptions({
   // 命名当前组件
   name: "接口配置"
 })
-
+const loading = ref(false)
 const setting = ref({
   api_url: "",
   api_key: "",
@@ -25,14 +25,16 @@ const rules = {
   models: [{ required: true, message: "请填写模型配置", trigger: "blur" }]
 }
 
-onMounted(() => {
-  getApiSettingData().then((data) => {
+onMounted(async () => {
+  loading.value = true
+  await getApiSettingData().then((data) => {
     if (data.data) {
       setting.value = data.data
       const arr: string[] = data.data.models.split(",")
       models.value = arr.filter((item) => item != "")
     }
   })
+  loading.value = false
 })
 
 function changeModel() {
@@ -88,7 +90,7 @@ function onSubmit(settingForm: FormInstance | null) {
 
 <template>
   <div class="app-container">
-    <el-card shadow="never">
+    <el-card shadow="never" v-loading="loading" :element-loading-text="'加载中...'">
       <el-form class="settingForm" ref="settingForm" :model="setting" label-position="top" :rules="rules">
         <el-form-item label="接口配置" prop="api_url" required>
           <el-input v-model="setting.api_url" placeholder="https://api.openai.com" />

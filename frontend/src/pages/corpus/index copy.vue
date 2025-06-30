@@ -9,16 +9,16 @@
     <div class="container">
       <div class="tab_box">
         <div class="tab_li actived">我的</div>
-        <div class="tab_li" @click="$router.push('/corpus/square')">广场</div>
+        <div class="tab_li" @click="to_square">广场</div>
       </div>
-      <div class="content_box" v-if="true">
+      <div class="content_box">
         <div class="flex_box flex-between phone_box">
           <el-button-group>
             <el-button
               :class="tab_active == 'terms' ? 'btn_active' : 'my_button'"
               :plain="tab_active == 'terms' ? false : true"
               :type="tab_active == 'terms' ? 'primary' : ''"
-              @click="tabSelect('terms')"
+              @click="tab_active = 'terms'"
             >
               我的术语表
             </el-button>
@@ -26,20 +26,18 @@
               :class="tab_active == 'prompt' ? 'btn_active' : 'my_button'"
               :plain="tab_active == 'prompt' ? false : true"
               :type="tab_active == 'prompt' ? 'primary' : ''"
-              @click="tabSelect('prompt')"
+              @click="tab_active = 'prompt'"
             >
               我的提示语
             </el-button>
           </el-button-group>
-
           <div class="btn_box" v-if="tab_active == 'terms'">
-            <el-button type="primary" color="#055CF9" @click="openTerms">新建</el-button>
+            <el-button type="primary" color="#055CF9" @click="openTerms()">新建</el-button>
             <el-dropdown split-button type="" style="margin: 0 12px" @command="command_terms">
               <el-upload
                 name="file"
                 :before-upload="upload_before"
                 :action="uploadUrl"
-                :headers="{ token: store.token }"
                 :show-file-list="false"
                 :on-success="(response, file, fileList) => upload_success(response)"
                 class="blue_color"
@@ -54,12 +52,10 @@
             </el-dropdown>
             <el-button type="" @click="export_terms_all">全部导出</el-button>
           </div>
-
           <div class="btn_box" v-if="tab_active == 'prompt'">
-            <el-button type="primary" color="#055CF9" @click="openPrompt">新建</el-button>
+            <el-button type="primary" color="#055CF9" @click="openPrompt()">新建</el-button>
           </div>
         </div>
-        <!-- 术语列表 -->
         <div class="term_box" v-if="tab_active == 'terms'">
           <el-row :gutter="24" v-if="termsData.length > 0">
             <el-col :xs="24" :sm="8" v-for="(item, index) in termsData" :key="index">
@@ -114,7 +110,6 @@
             <div class="text">暂无数据</div>
           </div>
         </div>
-        <!-- 提示语列表 -->
         <div class="prompt_box" v-if="tab_active == 'prompt'">
           <el-row :gutter="24" v-if="promptData.length > 0">
             <el-col :xs="24" :sm="8" v-for="(item, index) in promptData" :key="index">
@@ -151,26 +146,194 @@
           </div>
         </div>
       </div>
-
       <!-- 备案信息 -->
       <Filing />
     </div>
 
-    <!-- 术语弹窗 -->
-    <TermEdit ref="termEditRef" :langs="langs" :loading="btnLoad" @confirm="handleTermConfirm" />
+    <!-- 术语弹窗页面pc -->
+    <el-dialog v-model="termSetShow" title="术语编辑器" width="90%" modal-class="term_dialog">
+      <template #header="{ close, titleId, titleClass }">
+        <span class="title">术语编辑器</span>
+        <el-switch v-model="termForm.share_flag" active-value="Y" inactive-value="N" />
+        <div class="flag_tips">分享{{ termForm.share_flag == 'Y' ? '开启' : '关闭' }}</div>
+      </template>
+      <el-form
+        ref="termformRef"
+        :model="termForm"
+        :rules="rules_term"
+        label-position="top"
+        hide-required-asterisk="true"
+      >
+        <el-row :gutter="20">
+          <el-col :span="24">
+            <el-form-item label="术语表标题" required prop="title" width="100%">
+              <el-input
+                v-model="termForm.title"
+                type="text"
+                placeholder="请输入术语表标题"
+                maxlength="50"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="源语种" required prop="origin_lang" width="100%">
+              <el-select v-model="termForm.origin_lang" placeholder="请选择" clearable>
+                <el-option v-for="lang in langs" :key="lang" :name="lang" :value="lang"></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="对照语种" required prop="target_lang" width="100%">
+              <el-select v-model="termForm.target_lang" placeholder="请选择" clearable>
+                <el-option v-for="lang in langs" :key="lang" :name="lang" :value="lang"></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24">
+            <div class="term_custom flex_box flex-between">
+              <div class="label">术语</div>
+              <div class="button_box">
+                <el-button type="text" @click="openQuick">快速编辑</el-button>
+                <div class="icon_add" @click="addTermContent">+</div>
+              </div>
+            </div>
+          </el-col>
+          <el-col :span="24" v-for="(item, index) in termForm.content" :key="index">
+            <div class="term_set_li flex_box flex-between">
+              <div class="form">
+                <el-row :gutter="20">
+                  <el-col :xs="24" :sm="12">
+                    <el-form-item
+                      label=""
+                      required
+                      :prop="'content.' + index + '.origin'"
+                      :rules="rules_term.origin"
+                      width="100%"
+                    >
+                      <el-input v-model="item.origin" type="text" maxlength="512" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <el-form-item
+                      label=""
+                      required
+                      :prop="'content.' + index + '.target'"
+                      :rules="rules_term.target"
+                      width="100%"
+                    >
+                      <el-input v-model="item.target" type="text" maxlength="512" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </div>
+              <div class="icon_del" @click="delTermContent(index)">-</div>
+            </div>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <div class="btn_box">
+          <el-button :disabled="btnLoad" @click="termSetShow = false">取消</el-button>
+          <el-button
+            type="primary"
+            color="#055CF9"
+            :disabled="btnLoad"
+            :loading="btnLoad"
+            @click="formConfim(termformRef)"
+          >
+            保存
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
 
-    <!-- 提示语弹窗 -->
-    <PromptEdit ref="promptEditRef" :loading="btnLoad" @confirm="handlePromptConfirm" />
+    <!-- 快速编辑 -->
+    <el-dialog v-model="termQuickShow" title="快速编辑器" width="90%" modal-class="term_dialog">
+      <div class="tips">请输入源语种和目标语种，中间用英文逗号隔开，示例：易和网,EHEWON</div>
+      <el-form
+        ref="quickFormRef"
+        :model="quickForm"
+        :rules="rules_term"
+        label-position="top"
+        hide-required-asterisk="true"
+      >
+        <el-form-item label="" required prop="textarea" width="100%">
+          <el-input
+            v-model="quickForm.textarea"
+            type="textarea"
+            rows="10"
+            resize="none"
+            placeholder="请输入"
+          />
+        </el-form-item>
+      </el-form>
+      <div class="btn_box">
+        <el-button @click="termQuickShow = false">取消</el-button>
+        <el-button type="primary" color="#055CF9" @click="quickConfim(quickFormRef)"
+          >保存</el-button
+        >
+      </div>
+    </el-dialog>
+
+    <!-- 提示语编辑器 -->
+    <el-dialog v-model="promptShow" title="提示语编辑器" width="90%" modal-class="term_dialog">
+      <template #header="{ close, titleId, titleClass }">
+        <span class="title">提示语编辑器</span>
+        <el-switch v-model="promptForm.share_flag" active-value="Y" inactive-value="N" />
+        <div class="flag_tips">分享{{ promptForm.share_flag == 'Y' ? '开启' : '关闭' }}</div>
+      </template>
+      <el-form
+        ref="promptformRef"
+        :model="promptForm"
+        :rules="rules_prompt"
+        label-position="top"
+        hide-required-asterisk="true"
+      >
+        <el-row :gutter="20">
+          <el-col :span="24">
+            <el-form-item label="提示语标题" required prop="title" width="100%">
+              <el-input
+                v-model="promptForm.title"
+                type="text"
+                placeholder="请输入提示语标题"
+                maxlength="50"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="提示语内容" required prop="content" width="100%">
+              <el-input
+                v-model="promptForm.content"
+                type="textarea"
+                rows="5"
+                resize="none"
+                placeholder="请输入"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <div class="btn_box">
+        <el-button :disabled="btnLoad" @click="promptShow = false">取消</el-button>
+        <el-button
+          type="primary"
+          color="#055CF9"
+          :disabled="btnLoad"
+          :loading="btnLoad"
+          @click="promptConfim(promptformRef)"
+        >
+          保存
+        </el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import Filing from '@/components/filing.vue'
-// import { useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { store } from '@/store/index'
-import TermEdit from './components/TermEdit.vue'
-import PromptEdit from './components/PromptEdit.vue'
-import { ref, watch, onMounted } from 'vue'
+import { reactive, ref, computed, watch, inject, defineEmits, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   comparison_my,
@@ -184,59 +347,52 @@ import {
   prompt_share,
   prompt_del
 } from '@/api/corpus'
-import { useUserStore } from '@/store/user'
-const userStore = useUserStore()
-const uploadUrl = ref(import.meta.env.VITE_API_URL + '/api/comparison/import')
+
+const router = useRouter()
+const uploadUrl = ref(import.meta.env.VITE_API_URL + '/api/comparison/import?token=' + store.token)
 const pageLoad = ref(false)
 const termsData = ref([])
 const promptData = ref([])
-const termEditRef = ref(null)
-const btnLoad = ref(false)
-const promptEditRef = ref(null)
-const tab_active = ref('terms')
-// const token = localStorage.getItem('token')
-// const prompt_id = ref(0)
-// watch(
-//   () => store.prompt,
-//   (n, o) => {
-//     if (n) {
-//       promptData.value.unshift({
-//         title: '默认提示语(无法删除)',
-//         content: store.prompt,
-//         undelete: true
-//       })
-//     }
-//   }
-// )
+const promptDataBefore = ref('')
+onMounted(() => {
+  getTermList()
+  getPromptList()
+})
 
-// 切换tab
-function tabSelect(i) {
-  tab_active.value = i
-}
-// 获取术语表数据
-const getTermList = async () => {
-  pageLoad.value = false
-  try {
-    const res = await comparison_my()
-    if (res.code === 200) {
-      termsData.value = res.data.data
-      // console.log(111, termsData.value)
-      // store.setComparisonList(res.data.data)
+watch(
+  () => store.prompt,
+  (n, o) => {
+    if (n) {
+      promptData.value.unshift({
+        title: '默认提示语(无法删除)',
+        content: store.prompt,
+        undelete: true
+      })
     }
-  } catch (error) {
-    console.error('获取术语表数据失败:', error)
   }
+)
+
+const tab_active = ref('terms')
+
+//获取术语表数据
+function getTermList() {
+  pageLoad.value = true
+  comparison_my().then((data) => {
+    if (data.code == 200) {
+      termsData.value = data.data.data
+      store.setComparisonList(data.data.data)
+      pageLoad.value = false
+    }
+  })
   pageLoad.value = false
 }
 
-// 获取提示语数据
-const getPromptList = async () => {
-  pageLoad.value = false
-  try {
-    const res = await prompt_my()
-    if (res.code === 200) {
-      // console.log(6666, res.data)
-      promptData.value = JSON.parse(JSON.stringify(res.data.data))
+//获取提示语数据
+function getPromptList() {
+  pageLoad.value = true
+  prompt_my().then((data) => {
+    if (data.code == 200) {
+      promptData.value = JSON.parse(JSON.stringify(data.data.data))
       if (store.prompt) {
         promptData.value.unshift({
           title: '默认提示语(无法删除)',
@@ -244,125 +400,154 @@ const getPromptList = async () => {
           undelete: true
         })
       }
+      const new_arr = JSON.parse(JSON.stringify(data.data.data))
+      new_arr.unshift({ title: '默认提示语', id: 0, content: store.prompt })
+      store.setPromptList(new_arr)
+      pageLoad.value = false
     }
-  } catch (error) {
-    console.error('获取提示语数据失败:', error)
-  }
+  })
   pageLoad.value = false
 }
 
+//术语弹窗
+const termSetShow = ref(false)
+const termQuickShow = ref(false)
+const termformRef = ref(null)
+const btnLoad = ref(false)
+//提示语弹窗
+const promptShow = ref(false)
+const promptformRef = ref(null)
 //翻译语言
-const langs = ['中文', '英语', '日语', '俄语', '阿拉伯语', '西班牙语','韩语','德语']
+const langs = ['中文', '英语', '日语', '俄语', '阿拉伯语', '西班牙语']
+const termForm = ref({
+  title: '', //标题
+  share_flag: 'N',
+  origin_lang: '',
+  target_lang: '',
+  content: [{ origin: '', target: '' }]
+})
 
-// 处理提示语弹窗保存逻辑
-const handlePromptConfirm = (val) => {
-  const formData = val
-  btnLoad.value = true
-  //是否是编辑
-  if (formData.id) {
-    prompt_edit(formData.id, formData)
-      .then((data) => {
-        btnLoad.value = false
-        if (data.code == 200) {
-          ElMessage({ message: '保存成功', type: 'success' })
-          promptEditRef.value.close()
-          getPromptList()
-        } else {
-          ElMessage({ message: data.message, type: 'error' })
-        }
-      })
-      .catch((err) => {
-        ElMessage({ message: '接口异常', type: 'error' })
-      })
+const validatePass = (rule, value, callback) => {
+  termformRef.value.clearValidate(['origin_lang', 'target_lang'])
+  if (
+    termForm.value.origin_lang != '' &&
+    termForm.value.target_lang != '' &&
+    termForm.value.origin_lang == termForm.value.target_lang
+  ) {
+    callback(new Error('源语种与对照语种不能一样'))
   } else {
-    prompt_add(formData)
-      .then((data) => {
-        btnLoad.value = false
-        if (data.code == 200) {
-          ElMessage({ message: '保存成功', type: 'success' })
-          promptEditRef.value.close()
-          getPromptList()
-        } else {
-          ElMessage({ message: data.message, type: 'error' })
-        }
-      })
-      .catch((err) => {
-        ElMessage({ message: '接口异常', type: 'error' })
-      })
+    callback()
   }
-  promptEditRef.value.close()
-  btnLoad.value = false
 }
-//处理术语表单弹窗保存逻辑
-const handleTermConfirm = (val) => {
-  const formData = val
-  btnLoad.value = true
-  if (formData.id) {
-    // 编辑操作
-    comparison_edit(formData.id, formData)
-      .then((data) => {
-        btnLoad.value = false
-        if (data.code == 200) {
-          ElMessage({ message: '保存成功', type: 'success' })
-          termEditRef.value.close() // 关闭子组件弹窗
-          getTermList()
-        } else {
-          ElMessage({ message: data.message, type: 'error' })
-        }
-      })
-      .catch((err) => {
-        ElMessage({ message: '接口异常', type: 'error' })
-      })
-  } else {
-    // 新建操作
-    comparison(formData)
-      .then((data) => {
-        btnLoad.value = false
-        if (data.code == 200) {
-          ElMessage({ message: '保存成功', type: 'success' })
-          termEditRef.value.close() // 关闭子组件弹窗
-          getTermList()
-        } else {
-          ElMessage({ message: data.message, type: 'error' })
-        }
-      })
-      .catch((err) => {
-        ElMessage({ message: '接口异常', type: 'error' })
-      })
-  }
-  termEditRef.value.close()
-  btnLoad.value = false
+const rules_term = {
+  title: [{ required: true, message: '请填写术语标题', trigger: ['blur', 'change'] }],
+  origin_lang: [
+    { required: true, message: '请选择源语种', trigger: ['blur', 'change'] },
+    { validator: validatePass, trigger: ['blur', 'change'] }
+  ],
+  target_lang: [
+    { required: true, message: '请选择对照语种', trigger: ['blur', 'change'] },
+    { validator: validatePass, trigger: ['blur', 'change'] }
+  ],
+  origin: [{ required: true, message: '请填写源语种内容', trigger: ['blur', 'change'] }],
+  target: [{ required: true, message: '请填写目标语种内容', trigger: ['blur', 'change'] }],
+  textarea: [{ required: true, message: '请填写相应内容', trigger: ['blur', 'change'] }]
+}
+
+//快速编辑器form
+const quickForm = ref({
+  textarea: ''
+})
+const quickFormRef = ref(null)
+
+//提示语form
+const promptForm = ref({
+  title: '', //标题
+  share_flag: 'N',
+  content: ''
+})
+const rules_prompt = {
+  title: [{ required: true, message: '请填写提示语标题', trigger: ['blur', 'change'] }],
+  content: [{ required: true, message: '请填写提示语内容', trigger: ['blur', 'change'] }]
 }
 
 //打开术语弹窗-编辑
 function openTerms(item) {
-  termEditRef.value.open() // 打开子组件弹窗
+  termSetShow.value = true
   if (item) {
-    termEditRef.value.updateForm(JSON.parse(JSON.stringify(item))) // 更新数据给子组件
+    termForm.value = JSON.parse(JSON.stringify(item))
   } else {
-    termEditRef.value.updateForm({
-      title: '', // 标题
+    termForm.value = {
+      title: '', //标题
       share_flag: 'N',
       origin_lang: '',
       target_lang: '',
       content: [{ origin: '', target: '' }]
-    })
+    }
   }
-}
-//打开提示语
-function openPrompt(item) {
-  promptEditRef.value.open()
-  if (item) {
-    promptEditRef.value.updateForm(JSON.parse(JSON.stringify(item)))
-  } else {
-    promptEditRef.value.updateForm({
-      title: '', //标题
-      share_flag: 'N',
-      content: ''
-    })
+  //重置校验方法
+  if (termformRef.value) {
+    termformRef.value.resetFields()
   }
 }
 
+//添加对照翻译方法
+function addTermContent() {
+  termForm.value.content.push({ origin: '', target: '' })
+}
+//删除对照语言一组
+function delTermContent(index) {
+  if (termForm.value.content.length <= 1) {
+    ElMessage({
+      message: '至少保留一组！',
+      type: 'error'
+    })
+    return false
+  }
+  termForm.value.content.splice(index, 1)
+}
+
+//术语表单确认
+function formConfim(termformRef) {
+  termformRef.validate((valid, messages) => {
+    if (valid) {
+      btnLoad.value = true
+      //是否是编辑
+      if (termForm.value.id) {
+        comparison_edit(termForm.value.id, termForm.value)
+          .then((data) => {
+            btnLoad.value = false
+            if (data.code == 200) {
+              ElMessage({ message: '保存成功', type: 'success' })
+              termSetShow.value = false
+              getTermList()
+            } else {
+              ElMessage({ message: data.message, type: 'error' })
+            }
+          })
+          .catch((err) => {
+            ElMessage({ message: '接口异常', type: 'error' })
+          })
+      } else {
+        comparison(termForm.value)
+          .then((data) => {
+            btnLoad.value = false
+            if (data.code == 200) {
+              ElMessage({ message: '保存成功', type: 'success' })
+              termSetShow.value = false
+              getTermList()
+            } else {
+              ElMessage({ message: data.message, type: 'error' })
+            }
+          })
+          .catch((err) => {
+            ElMessage({ message: '接口异常', type: 'error' })
+          })
+      }
+    }
+  })
+  // btnLoad.value = false
+}
 //删除术语表
 function delTerms(item) {
   ElMessageBox.confirm('确定要删除？', '提示', {
@@ -402,77 +587,21 @@ function share_change(item) {
 }
 
 //导出单个术语表
-async function export_terms(item) {
-  try {
-    // 发起 fetch 请求
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/api/comparison/export/${item.id}`,
-      {
-        headers: {
-          token: `${userStore.token}`
-        }
-      }
-    )
-
-    // 检查响应状态
-    if (!response.ok) {
-      throw new Error('文件下载失败')
-    }
-
-    // 获取文件内容
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-
-    // 创建 `<a>` 标签并触发下载
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${item.title}.xlsx` // 设置下载文件名
-    document.body.appendChild(a)
-    a.click()
-    // 清理资源
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url) // 释放 URL 对象
-  } catch (error) {
-    console.error('下载失败:', error)
-    ElMessage.error('文件下载失败，请稍后重试')
-  }
+function export_terms(item) {
+  window.open(
+    import.meta.env.VITE_API_URL + '/api/comparison/export/' + item.id + '?token=' + store.token
+  )
 }
 
-// 导出所有术语表
-async function export_terms_all() {
-  try {
-    const response = await fetch(import.meta.env.VITE_API_URL + '/api/comparison/export/all', {
-      headers: {
-        token: `${userStore.token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('术语表导出失败')
-    }
-
-    // 获取文件内容
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-
-    // 创建 `<a>` 标签并触发下载
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `all_terms_${new Date().toISOString().slice(0, 10)}.zip` // 设置下载文件名，假设导出的是 Excel 文件
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url) // 释放 URL 对象
-  } catch (error) {
-    console.error('导出失败:', error)
-    ElMessage.error('术语表导出失败，请稍后重试')
-  }
+//导出所有术语表
+function export_terms_all() {
+  window.open(import.meta.env.VITE_API_URL + '/api/comparison/export/all?token=' + store.token)
 }
 
 //术语表模板下载
 function command_terms(type) {
   if (type == 'down') {
-    window.open(import.meta.env.VITE_API_URL + '/api/comparison/template')
+    window.open(import.meta.env.VITE_API_URL + '/api/comparison/template?token=' + store.token)
   }
 }
 
@@ -494,6 +623,84 @@ function upload_before(file) {
     return false
   }
   return isXlsx
+}
+
+//打开快速编辑
+function openQuick() {
+  termQuickShow.value = true
+}
+//快速编辑确认
+function quickConfim(quickFormRef) {
+  quickFormRef.validate((valid, messages) => {
+    if (valid) {
+      const arr = [...quickForm.value.textarea.split(',')]
+      if (arr.length == 2) {
+        termForm.value.content.push({ origin: arr[0], target: arr[1] })
+        termQuickShow.value = false
+      } else {
+        ElMessage({ message: '输入格式有误，无法快速添加！', type: 'error' })
+      }
+    }
+  })
+}
+
+//打开提示语
+function openPrompt(item) {
+  promptShow.value = true
+  if (item) {
+    promptForm.value = JSON.parse(JSON.stringify(item))
+  } else {
+    promptForm.value = {
+      title: '', //标题
+      share_flag: 'N',
+      content: ''
+    }
+  }
+  //重置校验方法
+  if (promptformRef.value) {
+    promptformRef.value.resetFields()
+  }
+}
+
+//提示语确定
+function promptConfim(promptformRef) {
+  promptformRef.validate((valid, messages) => {
+    if (valid) {
+      btnLoad.value = true
+      //是否是编辑
+      if (promptForm.value.id) {
+        prompt_edit(promptForm.value.id, promptForm.value)
+          .then((data) => {
+            btnLoad.value = false
+            if (data.code == 200) {
+              ElMessage({ message: '保存成功', type: 'success' })
+              promptShow.value = false
+              getPromptList()
+            } else {
+              ElMessage({ message: data.message, type: 'error' })
+            }
+          })
+          .catch((err) => {
+            ElMessage({ message: '接口异常', type: 'error' })
+          })
+      } else {
+        prompt_add(promptForm.value)
+          .then((data) => {
+            btnLoad.value = false
+            if (data.code == 200) {
+              ElMessage({ message: '保存成功', type: 'success' })
+              promptShow.value = false
+              getPromptList()
+            } else {
+              ElMessage({ message: data.message, type: 'error' })
+            }
+          })
+          .catch((err) => {
+            ElMessage({ message: '接口异常', type: 'error' })
+          })
+      }
+    }
+  })
 }
 
 //提示语 分享状态修改
@@ -535,10 +742,10 @@ function delPrompt(item) {
     })
   })
 }
-onMounted(() => {
-  getTermList()
-  getPromptList()
-})
+
+function to_square() {
+  router.push({ name: 'square' })
+}
 </script>
 
 <style scoped lang="scss">

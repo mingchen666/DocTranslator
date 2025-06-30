@@ -1,9 +1,15 @@
 <script lang="ts" setup>
 const VITE_APP_TITLE = import.meta.env.VITE_APP_TITLE
+
+const openWebsite = () => {
+  window.open("https://github.com/mingchen666/DocTranslator", "_blank")
+}
 </script>
 
 <template>
-  <footer class="layout-footer"> DocTranslator©Powerd by DocTranslator</footer>
+  <footer class="layout-footer">
+    <span class="copyright-link" @click="openWebsite"> DocTranslator 1.3.4 ©Powerd by MingChen </span>
+  </footer>
 </template>
 
 <style lang="scss" scoped>
@@ -14,5 +20,15 @@ const VITE_APP_TITLE = import.meta.env.VITE_APP_TITLE
   align-items: center;
   justify-content: center;
   color: var(--el-text-color-placeholder);
+
+  .copyright-link {
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.3s;
+
+    &:hover {
+      color: var(--el-color-primary);
+    }
+  }
 }
 </style>

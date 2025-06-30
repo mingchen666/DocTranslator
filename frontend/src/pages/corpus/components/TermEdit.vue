@@ -9,7 +9,7 @@
     <template #header="{ close, titleId, titleClass }">
       <span class="title">术语编辑器</span>
       <el-switch v-model="localForm.share_flag" active-value="Y" inactive-value="N" />
-      <div class="flag_tips">分享{{ localForm.share_flag == 'Y' ? '开启' : '关闭' }}</div>
+      <div class="flag_tips">共享{{ localForm.share_flag == 'Y' ? '开启' : '关闭' }}</div>
     </template>
     <el-form
       ref="termformRef"
@@ -31,7 +31,13 @@
         </el-col>
         <el-col :xs="24" :sm="12">
           <el-form-item label="源语种" required prop="origin_lang" width="100%">
-            <el-select v-model="localForm.origin_lang" placeholder="请选择" clearable>
+            <el-select
+              v-model="localForm.origin_lang"
+              placeholder="请选择"
+              filterable
+              allow-create
+              clearable
+            >
               <el-option
                 v-for="lang in props.langs"
                 :key="lang"
@@ -43,7 +49,13 @@
         </el-col>
         <el-col :xs="24" :sm="12">
           <el-form-item label="对照语种" required prop="target_lang" width="100%">
-            <el-select v-model="localForm.target_lang" placeholder="请选择" clearable>
+            <el-select
+              v-model="localForm.target_lang"
+              placeholder="请选择"
+              filterable
+              allow-create
+              clearable
+            >
               <el-option
                 v-for="lang in props.langs"
                 :key="lang"

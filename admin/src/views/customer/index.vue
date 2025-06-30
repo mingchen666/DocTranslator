@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { reactive, ref, watch, computed } from "vue"
+import { reactive, ref, watch } from "vue"
 import { changeCustomerStatusApi, updateCustomerDataApi, getCustomerDataApi } from "@/api/customer"
 import { type CreateOrUpdateCustomerRequestData, type GetCustomerData } from "@/api/customer/types/customer"
 import { type FormInstance, type FormRules, ElMessage } from "element-plus"
@@ -118,7 +118,6 @@ const registerSuccess = () => {
   registerVisible.value = false
   getCustomerData()
 }
-
 
 /** 监听分页参数的变化 */
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getCustomerData, { immediate: true })

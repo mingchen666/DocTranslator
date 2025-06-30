@@ -36,10 +36,11 @@
               <div class="icon_svg"><svg-icon icon-class="github" /></div>
               <span class="pc_show">Github</span>
             </div>
-            <!-- <div class="btn_set" @click="windowOpen('https://support.qq.com/product/670074')">
-              <div class="icon_svg"><svg-icon icon-class="question" /></div>
-              <span class="pc_show">问题反馈</span>
-            </div> -->
+            <div class="btn_set" @click="$router.push('/profile')">
+              <!-- <div class="icon_svg"><svg-icon icon-class="user" /></div> -->
+              <el-icon class="icon_svg"><UserFilled /></el-icon>
+              <span class="pc_show">个人中心</span>
+            </div>
             <img
               class="icon_vip pc_show"
               v-if="store.level == 'vip'"
@@ -61,7 +62,7 @@
 
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                  <!-- <el-dropdown-item command="profile">个人中心</el-dropdown-item> -->
                   <el-dropdown-item command="pwd">修改密码</el-dropdown-item>
                   <el-dropdown-item command="exit">退出</el-dropdown-item>
                 </el-dropdown-menu>
@@ -115,6 +116,7 @@ import { useTranslateStore } from '@/store/translate'
 import { authInfo } from '@/api/account'
 import { ref, computed, onMounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon/index.vue'
+import { UserFilled } from '@element-plus/icons-vue'
 import TranslationSettings from '@/components/TranslationSettings.vue'
 import { getSystemSetting, getTranslateSetting } from '@/api/settings'
 const userStore = useUserStore()

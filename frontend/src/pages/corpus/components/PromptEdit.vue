@@ -9,7 +9,7 @@
     <template #header="{ close, titleId, titleClass }">
       <span class="title">提示语编辑器</span>
       <el-switch v-model="localForm.share_flag" active-value="Y" inactive-value="N" />
-      <div class="flag_tips">分享{{ localForm.share_flag == 'Y' ? '开启' : '关闭' }}</div>
+      <div class="flag_tips">共享{{ localForm.share_flag == 'Y' ? '开启' : '关闭' }}</div>
     </template>
     <el-form
       ref="promptformRef"

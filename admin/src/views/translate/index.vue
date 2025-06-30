@@ -86,7 +86,7 @@ const handleMoreDownload = () => {
     })
     .then((blob) => {
       const currentDate = new Date().toISOString().split("T")[0] // 获取当前日期，格式为 YYYY-MM-DD
-      const filename = `downloads_${currentDate}.zip` // 你可以根据实际情况设置文件名
+      const filename = `downloads_${currentDate}.zip`
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
@@ -157,9 +157,10 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div class="table-wrapper">
         <el-table :data="translateData" @selection-change="handleSelectionChange">
           <el-table-column type="selection" width="50" align="left" />
-          <el-table-column prop="customer_no" label="所属用户ID" align="left" />
+          <el-table-column prop="customer_no" width="80" label="用户ID" align="left" />
+          <el-table-column prop="customer_email" label="用户邮箱" width="150" align="left" />
           <el-table-column prop="origin_filename" label="文档名称" align="left" />
-          <el-table-column prop="status" label="任务状态" align="left">
+          <el-table-column prop="status" label="任务状态" align="left" width="120">
             <template #default="scope">
               <el-tag v-if="scope.row.status == 'none'" type="primary" effect="plain">未完成</el-tag>
               <el-tag v-else-if="scope.row.status == 'process'" type="warning" effect="plain">翻译中</el-tag>
@@ -168,7 +169,13 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
             </template>
           </el-table-column>
           <el-table-column prop="start_at" label="任务开始时间" align="left" />
-          <el-table-column prop="spend_time" label="完成用时" align="left" />
+          <el-table-column prop="spend_time" label="完成用时" width="100" align="left" />
+          <el-table-column prop="deleted_flag" label="用户是否删除" align="left" width="120">
+            <template #default="scope">
+              <el-tag v-if="scope.row.deleted_flag == 'Y'" type="primary" effect="plain">是</el-tag>
+              <el-tag v-else-if="scope.row.deleted_flag == 'N'" type="warning" effect="plain">否</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column fixed="right" label="操作" width="100" align="left">
             <template #default="scope">
               <el-link
