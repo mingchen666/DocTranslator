@@ -3,7 +3,7 @@ import { createApp } from 'vue'
 import router from './router'
 import './style.css'
 import App from './App.vue'
-
+import 'element-plus/dist/index.css'
 import ElementPlus from 'element-plus';
 import 'element-plus/theme-chalk/index.css';
 
@@ -11,7 +11,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import 'virtual:svg-icons-register'
 
 import zhLocale from 'element-plus/es/locale/lang/zh-cn' 
-// import 'element-plus/dist/index.css'
+
 import { createPinia } from 'pinia';
 import { createPersistedState } from 'pinia-plugin-persistedstate';
 

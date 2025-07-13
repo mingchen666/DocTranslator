@@ -1,1 +1,0 @@
-import{_ as o,o as s,c as a,a as n}from"./index-BM2Zs4ez.js";const t={},c={class:"filing"};function r(_,e){return s(),a("div",c,e[0]||(e[0]=[n("p",null,"© 2025 DocTranslator 1.3.4 保留所有权利",-1)]))}const l=o(t,[["render",r],["__scopeId","data-v-4e45faf5"]]);export{l as F};

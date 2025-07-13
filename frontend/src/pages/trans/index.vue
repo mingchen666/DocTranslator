@@ -33,7 +33,7 @@
               <span>上传文档</span>
             </button>
             <div class="title phone_show">点击按钮选择添加文档</div>
-            <div class="tips">支持格式{{ accpet_tip }}，文件≤30MB</div>
+            <div class="tips">支持格式{{ accpet_tip }}，建议文件≤30MB</div>
           </div>
         </el-upload>
       </div>
@@ -233,25 +233,19 @@ import {
   delTranslate,
   delAllTranslate,
   downAllTranslate,
+  doc2xStartService,
+  doc2xQueryStatusService,
   getFinishCount
 } from '@/api/trans'
 import { storage } from '@/api/account'
-import uploadedPng from '@assets/uploaded.png'
 import uploadPng from '@assets/upload.png'
-import loadingPng from '@assets/loading.gif'
-import finishPng from '@assets/finish.png'
-import completedPng from '@assets/completed.png'
 import { ElMessage, ElMessageBox } from 'element-plus'
-// import hash from 'object-hash'
-// import request from '@/utils/request'
 import { useTranslateStore } from '@/store/translate'
 import { useUserStore } from '@/store/user'
 const userStore = useUserStore()
 const translateStore = useTranslateStore()
 // 当前翻译服务 computed计算
 const currentServiceType = computed(() => translateStore.currentService)
-const uploaded = ref(false)
-const translated = ref(false)
 // 翻译数据表格加载状态
 const isLoadingData = ref(true)
 const upload_load = ref(false)
@@ -260,7 +254,7 @@ const no_data = ref(true)
 
 const accepts = '.docx,.xlsx,.pptx,.pdf,.txt,.csv,.md'
 const fileListShow = ref(false)
-const translating = {}
+
 const result = ref({})
 const target_count = ref('')
 const target_time = ref('')
@@ -303,6 +297,7 @@ const form = ref({
   origin_lang: '', // 添加起始语言字段
   comparison_id: '', //术语id
   prompt_id: '', //提示语id,
+  translate_id: null,
   doc2x_secret_key: '',
   doc2x_flag: 'N'
 })
@@ -408,8 +403,44 @@ function process(uuid) {
       getTranslatesData(1)
     })
 }
-
-// 启动翻译-----立即翻译
+// doc2x进度查询
+const doc2xStatusQuery = async (data) => {
+  const res = await doc2xQueryStatusService(data)
+  if (res.code == 200) {
+    console.log('doc2x进度查询', res.data)
+    // 如果返回的字段中明确表示任务失败
+    if (res.data.status === 'failed') {
+      // 处理任务失败
+      ElMessage({
+        message: '翻译失败' || '未知错误',
+        type: 'error',
+        duration: 5000
+      })
+      // 更新翻译任务列表
+      getTranslatesData(1)
+      return // 直接返回，不再继续查询
+    } else if (res.data.status == 'done') {
+      // 任务完成时，更新翻译任务列表
+      ElMessage.success({
+        message: '文件翻译成功！'
+      })
+      getTranslatesData(1)
+    } else {
+      // 如果未完成，继续调用 process 函数
+      setTimeout(() => doc2xStatusQuery(data), 10000)
+    }
+  } else {
+    // 处理错误情况（res.code != 200）
+    ElMessage({
+      message: res.message || '查询任务进度失败',
+      type: 'error',
+      duration: 5000
+    })
+    // 任务失败时，更新翻译任务列表
+    getTranslatesData(1)
+  }
+}
+// 启动翻译-----立即翻译-------
 async function handleTranslate(transform) {
   // 首先再次赋值，防止没有更新
   form.value = { ...form.value, ...translateStore.getCurrentServiceForm }
@@ -421,6 +452,39 @@ async function handleTranslate(transform) {
   //   })
   //   return
   // }
+  const file_suffix = form.value.files[0].file_name.split('.').pop().toLowerCase()
+  // 先判断是不是pdf文件和是否启用doc2x
+  if (
+    file_suffix == 'pdf' &&
+    translateStore.common.doc2x_flag == 'Y' &&
+    translateStore.common.doc2x_secret_key !== ''
+  ) {
+    form.value.server = 'doc2x'
+    // console.log('翻译pdf表单：', form.value)
+    // 1.启动doc2x翻译
+    const res = await doc2xStartService(form.value)
+    if (res.code == 200) {
+      ElMessage({
+        message: '提交doc2x翻译任务成功！',
+        type: 'success'
+      })
+      // 更新uuid
+      form.value.uuid = res.data.uuid
+      // 刷新翻译列表
+      getTranslatesData(1)
+      // 启动任务查询
+      doc2xStatusQuery({ translate_id: form.value.translate_id })
+    } else {
+      ElMessage({
+        message: '提交翻译任务失败~',
+        type: 'error'
+      })
+    }
+    // 4.清空上传文件列表
+    uploadRef.value.clearFiles()
+    return res
+  }
+
   if (currentServiceType.value == 'ai') {
     // 2.检查翻译设置是否完整
     if (form.value.server === '') {
@@ -510,6 +574,27 @@ async function handleTranslate(transform) {
 async function retryTranslate(item) {
   form.value.uuid = item.uuid
   form.value.file_name = item.origin_filename
+  // 先判断是不是doc2x失败
+  if (item.server == 'doc2x') {
+    // 1.启动doc2x翻译
+    const res = await doc2xStartService(form.value)
+    if (res.code == 200) {
+      ElMessage({
+        message: '提交doc2x翻译任务成功！',
+        type: 'success'
+      })
+      // 刷新翻译列表
+      getTranslatesData(1)
+      // 启动任务查询
+      doc2xStatusQuery({ translate_id: item.id })
+    } else {
+      ElMessage({
+        message: '提交doc2x任务失败~',
+        type: 'error'
+      })
+    }
+    return
+  }
   // 3.重启翻译任务
   const res = await transalteFile(form.value)
   if (res.code == 200) {
@@ -528,9 +613,7 @@ async function retryTranslate(item) {
     })
   }
 }
-function changeFile() {
-  uploaded.value = false
-}
+
 // 上传之前   && editionInfo.value != 'community'
 function beforeUpload(file) {
   if (!userStore.token) {
@@ -560,8 +643,9 @@ function uploadSuccess(res, file) {
     form.value.files.push(uploadedFile)
     // 更新文件大小
     form.value.size = file.size
-    // 获取到uuid
+    // 获取到uuid和translate_id
     form.value.uuid = res.data.uuid
+    form.value.translate_id = res.data.translate_id
     // 更新存储空间
     getStorageInfo()
   } else {
@@ -630,7 +714,7 @@ function delUploadFile(file, files) {
   }
 }
 
-//获取翻译列表数据的方法
+//获取翻译列表数据
 async function getTranslatesData(page, uuid) {
   //删除翻译中的任务
   if (uuid) {
@@ -667,6 +751,7 @@ async function getTranslatesData(page, uuid) {
   // 切换状态
   isLoadingData.value = false
   getStorageInfo()
+  getCount()
 }
 
 //获取存储空间等信息的方法

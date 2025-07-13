@@ -4,6 +4,7 @@ import shutil
 import asyncio
 import datetime
 from pathlib import Path
+from babeldoc.docvision.table_detection.rapidocr import RapidOCRModel
 from . import common, db, to_translate
 import babeldoc.high_level
 from babeldoc.document_il.translator.translator import OpenAITranslator
@@ -18,7 +19,7 @@ def clean_output_filename(original_path: Path, output_dir: str) -> Path:
     stem = original_path.stem.split('.')[0]
     new_path = Path(output_dir) / f"{stem}{original_path.suffix}"
 
-    # 支持所有可能的输出文件名变体
+    # 支持所有可能的输出文件名变体.no_watermark.en.mono.pdf
     for suffix in [
         '.dual', '.mono',
         '.no_watermark.en.dual', '.no_watermark.en.mono',
@@ -27,6 +28,7 @@ def clean_output_filename(original_path: Path, output_dir: str) -> Path:
         '.zh.dual', '.zh.mono',
         '.no_watermark.zh.mono',
         '.no_watermark.en.mono',
+        'no_watermark.en.mono'
     ]:
         temp_path = Path(output_dir) / f"{stem}{suffix}{original_path.suffix}"
         if temp_path.exists():
@@ -52,7 +54,7 @@ async def async_translate_pdf(trans):
         doc_layout_model = DocLayoutModel.load_onnx()
 
         # 初始化表格模型（根据参数决定是否启用）
-        # table_model = RapidOCRModel() if trans.get('translate_table', False) else None
+        table_model = RapidOCRModel() if trans.get('translate_table', False) else None
 
         # 创建翻译器实例
         translator = OpenAITranslator(
@@ -61,7 +63,7 @@ async def async_translate_pdf(trans):
             model=trans.get('model', 'gpt-4'),
             api_key=trans['api_key'],
             base_url=trans.get('api_url', 'https://api.openai.com/v1'),
-            ignore_cache=False
+            ignore_cache=False,
 
         )
 
@@ -78,12 +80,20 @@ async def async_translate_pdf(trans):
             min_text_length=5,
             pages=None,
             qps=3,
-            # translate_table_text=True,
-            # table_model=table_model,  # 传递表格模型
-            # translate_table_text=True,  # 表格翻译开关
+            table_model=table_model,  # 传递表格模型
             # show_char_box=True, # 调试表格识别
             no_dual=True,  # 是否生成双语PDF
             no_mono=False,  # 是否生成单语PDF
+
+            # 文本处理相关
+            split_short_lines=True,  # 启用短行分割，可能有助于捕获更多文本
+            # short_line_split_factor=0.7,  # 调整分割阈值因子
+            # 扫描文档处理
+
+            skip_scanned_detection=False,  # 不跳过扫描文档检测
+            ocr_workaround=True,  # 启用OCR解决方案
+            # auto_enable_ocr_workaround=True,  # 启用自动OCR解决方案
+
         )
 
         # 执行翻译

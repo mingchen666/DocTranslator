@@ -175,17 +175,17 @@
 
       <!-- 通用设置 -->
       <el-divider />
-        <!-- 译文形式 -->
-        <el-form-item label="译文形式" required>
-          <el-cascader
-            v-model="settingsForm.common.type"
-            :options="typeOptions"
-            placeholder="选择译文形式"
-            style="width: 100%"
-            :props="{ expandTrigger: 'hover' }"
-            clearable
-          />
-        </el-form-item>
+      <!-- 译文形式 -->
+      <el-form-item label="译文形式" required>
+        <el-cascader
+          v-model="settingsForm.common.type"
+          :options="typeOptions"
+          placeholder="选择译文形式"
+          style="width: 100%"
+          :props="{ expandTrigger: 'hover' }"
+          clearable
+        />
+      </el-form-item>
       <el-form-item label="线程数" required width="100%">
         <el-input-number
           v-model="settingsForm.aiServer.threads"
@@ -193,6 +193,35 @@
           :max="20"
           :controls="true"
           style="width: 50%"
+        />
+      </el-form-item>
+      <!-- doc2x -->
+      <h4>是否使用Doc2x翻译PDF文件:</h4>
+      <el-alert
+        type="warning"
+        description="启用后，所有pdf将使用doc2x进行处理。doc2x目前是进行pdf解析,将pdf转换成word、md等文件"
+        show-icon
+        :closable="false"
+      />
+
+      <el-form-item>
+        <el-radio-group v-model="settingsForm.common.doc2x_flag" @change="handleDoc2xToggle">
+          <!-- <el-radio label="N">禁用</el-radio> -->
+          <!-- <el-radio label="Y">启用</el-radio> -->
+          <el-radio-button label="禁用" value="N" />
+          <el-radio-button label="启用" value="Y" />
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item
+        v-if="settingsForm.common.doc2x_flag === 'Y'"
+        label="Doc2x密钥:"
+        prop="doc2x_secret_key"
+      >
+        <el-input
+          v-model="settingsForm.common.doc2x_secret_key"
+          placeholder="输入Doc2x API Key"
+          clearable
+          style="width: 300px; margin-right: 10px"
         />
       </el-form-item>
     </el-form>
@@ -525,7 +554,7 @@ const formConfim = (formEl) => {
 
       if (settingsForm.value.currentService === 'ai') {
         translateStore.updateAIServerSettings(settingsForm.value.aiServer)
-      } else if (settingsForm.value.currentService === 'baidu') {   
+      } else if (settingsForm.value.currentService === 'baidu') {
         translateStore.updateBaiduSettings(settingsForm.value.baidu)
       } else if (settingsForm.value.currentService === 'google') {
         translateStore.updateGoogleSettings(settingsForm.value.google)

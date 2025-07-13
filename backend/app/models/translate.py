@@ -54,5 +54,5 @@ class Translate(db.Model):
             'created_at': self.created_at.isoformat(),
             'customer_id': self.customer_id,
             'word_count': self.word_count,
-            'failed_reason': self.failed_reason
+            'server': self.server,
         }

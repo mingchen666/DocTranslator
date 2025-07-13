@@ -1,18 +1,18 @@
 <template>
   <div class="security-settings">
-    <el-form label-width="120px">
-      <el-form-item label="登录邮箱">
+    <el-form>
+      <el-form-item label="登录邮箱:">
         <div class="email-display">
           {{ email }}
           <el-button type="text">更换邮箱</el-button>
         </div>
       </el-form-item>
 
-      <el-form-item label="登录密码">
+      <el-form-item label="登录密码:">
         <el-button @click="$router.push('/reset')">修改密码</el-button>
       </el-form-item>
 
-      <el-form-item label="账号安全">
+      <el-form-item label="账号安全:">
         <div class="security-tips">
           <el-icon><Warning /></el-icon>
           <span>请妥善保管您的账号信息，不要泄露给他人</span>
@@ -54,16 +54,12 @@ const props = defineProps({
   }
 })
 
-
-
 const showBindDialog = ref(false)
 const bindForm = ref({
   email: '',
   code: ''
 })
 const countdown = ref(0)
-
-
 
 // 发送验证码
 const sendCode = () => {
@@ -86,7 +82,7 @@ const confirmBind = () => {
 
 <style scoped lang="scss">
 .security-settings {
-  padding: 0;
+  padding: 12px 16px;
   .email-display {
     display: flex;
     align-items: center;

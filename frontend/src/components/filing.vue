@@ -1,7 +1,7 @@
 <template>
   <!-- 版权信息 -->
   <div class="filing">
-    <p>© 2025 DocTranslator 1.3.4 保留所有权利</p>
+    <p>© 2025 DocTranslator 1.4.0 保留所有权利</p>
   </div>
 </template>
 

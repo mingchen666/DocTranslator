@@ -178,7 +178,7 @@ class TranslateStartResource(Resource):
             return APIResponse.error("任务启动失败", 500)
 
 
-# 修复时间显示
+# 获取翻译记录列表
 class TranslateListResource(Resource):
     @jwt_required()
     def get(self):
@@ -251,9 +251,10 @@ class TranslateListResource(Resource):
                 'end_at': end_at_str,  # 完成时间
                 'start_at': t.start_at.strftime('%Y-%m-%d %H:%M:%S') if t.start_at else "--",
                 # 开始时间
-                'lang': get_unified_lang_name(t.lang), # 标准输出语言中文名称
+                'lang': get_unified_lang_name(t.lang),  # 标准输出语言中文名称
                 'target_filepath': t.target_filepath,
-                'uuid': t.uuid
+                'uuid': t.uuid,
+                'server': t.server,
             })
 
         # 返回响应数据

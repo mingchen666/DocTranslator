@@ -16,13 +16,20 @@
 
     <!-- 线程数 -->
     <el-form-item label="线程数:" prop="threads">
-      <el-input-number
-        v-model="form.threads"
-        :min="1"
-        :max="20"
-        :step="1"
-      />
+      <el-input-number v-model="form.threads" :min="1" :max="20" :step="1" />
     </el-form-item>
+    <el-alert type="warning" description="启用后，所有pdf将使用doc2x进行处理。doc2x目前是进行pdf解析,将pdf转换成word、md等文件" show-icon :closable="false" />
+
+    <!-- <Alert
+      title="操作提示"
+      type="success"
+      description="文件已成功上传"
+      closable
+      @close="handleClose"
+    >
+
+      <p class="text-xs mt-1">文件大小: 2.4MB</p>
+    </Alert> -->
 
     <!-- Doc2x启用开关 -->
     <el-form-item label="是否使用Doc2x翻译PDF文件:">
@@ -40,7 +47,7 @@
         clearable
         style="width: 300px; margin-right: 10px"
       />
-      <el-button type="primary" plain :loading="testingDoc2x" @click="testDoc2xConnection">
+      <el-button type="primary" plain disabled :loading="testingDoc2x" @click="testDoc2xConnection">
         测试连接
       </el-button>
     </el-form-item>
@@ -56,6 +63,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+// import Alert from '../../../components/alert.vue'
 import { comparison_my } from '@/api/corpus'
 import { checkDocx } from '@/api/trans'
 import { useTranslateStore } from '@/store/translate'

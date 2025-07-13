@@ -22,6 +22,7 @@ from app.resources.api.comparison import MyComparisonListResource, SharedCompari
     DownloadTemplateResource, ImportComparisonResource, ExportComparisonResource, \
     ExportAllComparisonsResource
 from app.resources.api.customer import GuestIdResource, CustomerDetailResource
+from app.resources.api.doc2x import Doc2XTranslateStartResource, Doc2XTranslateStatusResource
 from app.resources.api.files import FileUploadResource, FileDeleteResource
 from app.resources.api.prompt import MyPromptListResource, SharedPromptListResource, \
     EditPromptResource, SharePromptResource, CopyPromptResource, FavoritePromptResource, \
@@ -68,6 +69,9 @@ def register_routes(api):
     api.add_resource(TranslateRandDownloadResource, '/api/translate/download/rand')
     api.add_resource(Doc2xCheckResource, '/api/check/doc2x')
     api.add_resource(TranslateStartResource, '/api/translate')  # 启动翻译
+    # doc2x接口
+    api.add_resource(Doc2XTranslateStartResource, '/api/doc2x/start')
+    api.add_resource(Doc2XTranslateStatusResource, '/api/doc2x/status')
 
     api.add_resource(GuestIdResource, '/api/guest/id')
     api.add_resource(CustomerDetailResource, '/api/customer/<int:customer_id>')
