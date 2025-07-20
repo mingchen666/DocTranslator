@@ -36,7 +36,7 @@ class AdminTranslateListResource(Resource):
 
         # 检查状态过滤条件
         if args['status']:
-            valid_statuses = {'none', 'process', 'done', 'failed'}
+            valid_statuses = {'none', 'process', 'done', 'failed', 'processing'}
             if args['status'] not in valid_statuses:
                 return APIResponse.error(f"Invalid status value: {args['status']}"), 400
             query = query.filter_by(status=args['status'])
@@ -228,7 +228,7 @@ class AdminTranslateStatisticsResource(Resource):
         try:
             total = Translate.query.count()
             done_count = Translate.query.filter_by(status='done').count()
-            processing_count = Translate.query.filter_by(status='process').count()
+            processing_count = Translate.query.filter(Translate.status.in_(['process', 'processing'])).count()
             failed_count = Translate.query.filter_by(status='failed').count()
 
             return APIResponse.success({

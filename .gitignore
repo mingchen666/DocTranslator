@@ -37,3 +37,6 @@ even/
 .gitignore
 gitignore
 更新.txt
+
+## 文件处理临时目录
+backend/storage/
