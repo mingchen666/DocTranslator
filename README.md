@@ -244,7 +244,6 @@ docker compose up -d
 ## 💖 赞赏支持
 
 维护此项目需要耗费大量精力，如果DocTranslator对你有帮助，欢迎赞赏支持！你的支持是我持续开发的动力！😊  
-🎉 **赞赏码**：  
 <img src="docs/e652698b250efb6e5151b084bd08814.jpg" alt="赞赏码" width="300">
 ---
 
