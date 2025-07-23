@@ -14,7 +14,7 @@ class Translate(db.Model):
     origin_filename = db.Column(db.String(520), nullable=False)     # 原始文件名（带路径）
     origin_filepath = db.Column(db.String(520), nullable=False)     # 原始文件存储路径
     target_filepath = db.Column(db.String(520), nullable=False)     # 目标文件路径
-    status = db.Column(db.Enum('none', 'process', 'done', 'failed'), default='none') # 任务状态
+    status = db.Column(db.Enum('none', 'process', 'done', 'failed', 'processing'), default='none') # 任务状态
     start_at = db.Column(db.DateTime)                               # 开始时间
     end_at = db.Column(db.DateTime)                                 # 完成时间
     deleted_flag = db.Column(db.Enum('N', 'Y'), default='N')        # 删除标记

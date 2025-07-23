@@ -201,7 +201,7 @@ class TranslateListResource(Resource):
 
         # 检查 status_filter 是否是合法值
         if status_filter:
-            valid_statuses = {'none', 'process', 'done', 'failed'}
+            valid_statuses = {'none', 'process', 'done', 'failed', 'processing'}
             if status_filter not in valid_statuses:
                 return APIResponse.error(f"Invalid status value: {status_filter}"), 400
             query = query.filter_by(status=status_filter)
@@ -229,6 +229,7 @@ class TranslateListResource(Resource):
             status_name_map = {
                 'none': '未开始',
                 'process': '进行中',
+                'processing': '进行中',
                 'done': '已完成',
                 'failed': '失败'
             }
