@@ -5,17 +5,16 @@ from dotenv import load_dotenv
 
 # 加载环境变量（优先加载项目根目录的.env文件）
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env')  # 显式指定.env文件位置
-# print(os.getenv('FLASK_ENV'))
+load_dotenv(BASE_DIR / '.env')
 
 class Config:
     # JWT配置
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=20)  # 20天
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=20)
     # JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)  # 刷新令牌7天
-    JWT_TOKEN_LOCATION = ['headers']  # 只从请求头获取
-    JWT_HEADER_NAME = 'token'  # 匹配原项目可能的头部名称
-    JWT_HEADER_TYPE = ''  # 不使用Bearer前缀
+    JWT_TOKEN_LOCATION = ['headers']
+    JWT_HEADER_NAME = 'token'
+    JWT_HEADER_TYPE = ''
     # 通用基础配置
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -33,11 +32,11 @@ class Config:
     # 文件上传配置
     # 允许上传的文件类型
     UPLOAD_BASE_DIR='storage'
-    UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads')  # 与 app.py 同级
+    UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads')
     DATE_FORMAT = "%Y-%m-%d"  # 日期格式
     ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc'}
     # UPLOAD_FOLDER = '/uploads'  # 建议使用绝对路径
-    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 30)) * 1024 * 1024  # 30MB
+    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50)) * 1024 * 1024  # 50MB
     MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 100 ))* 1024 * 1024  # 默认100MB
     # 翻译结果存储配置
     STORAGE_FOLDER = '/app/storage'  # 翻译结果存储路径

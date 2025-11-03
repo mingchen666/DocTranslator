@@ -1,6 +1,6 @@
 
 import { defineStore } from 'pinia';
-import { ref,computed } from 'vue';
+import { ref, computed } from 'vue';
 
 export const useUserStore = defineStore('user-info', () => {
   const token = ref('');
@@ -8,7 +8,8 @@ export const useUserStore = defineStore('user-info', () => {
     "email": "",
     "level": "",
     "created_at": "",
-    "storage": null
+    "storage": null,
+    "total_storage": 10000000
   })
   const isLogin = computed(() => {
     return token.value !== '';
@@ -24,8 +25,9 @@ export const useUserStore = defineStore('user-info', () => {
   const updateUserInfo = (newValue) => {
     userInfo.value = newValue
   };
-  const updateStorage = (newValue) => {
-    userInfo.value.storage = newValue
+  const updateStorage = ({ storage, total_storage }) => {
+    userInfo.value.storage = storage
+    userInfo.value.total_storage = total_storage
   };
   // 退出登录
   const logout = () => {
@@ -40,6 +42,7 @@ export const useUserStore = defineStore('user-info', () => {
     updateToken,
     updateUserInfo,
     logout,
+    isLogin,
     updateStorage
   };
 }, {

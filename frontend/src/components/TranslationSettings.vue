@@ -502,7 +502,7 @@ function docx2_check1() {
       })
     })
 }
-// 检查连接
+// //检查功能实现
 const check = async () => {
   checking.value = true
   check_text.value = ''
@@ -521,8 +521,7 @@ const check = async () => {
       return
       // res = await checkGoogle({...})
     }
-
-    check_text.value = res?.code === 200 ? 'success' : 'fail'
+    check_text.value = res?.code === 200 && res.data.valid ? 'success' : 'fail'
   } catch (error) {
     check_text.value = 'fail'
     ElMessage.error('检查失败: ' + error.message)

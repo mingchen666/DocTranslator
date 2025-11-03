@@ -35,7 +35,7 @@
           ></div>
         </div>
         <div class="storage-details">
-          <span class="storage-text"> {{ formattedStorage }} / 100 MB </span>
+          <span class="storage-text"> {{ formattedStorage }} / {{ formattedAllStorage }} </span>
           <span class="storage-percent">{{ storagePercentage }}%</span>
           <el-button
             v-if="userInfo.level !== 'vip'"
@@ -73,20 +73,20 @@ const props = defineProps({
 // 使用toRefs确保响应式
 const { userInfo } = toRefs(props)
 
-// 总空间100MB = 104857600字节
-const totalBytes = 104857600
-
 // 计算存储空间百分比
 const storagePercentage = computed(() => {
-  const percentage = (userInfo.value.storage / totalBytes) * 100;
-  return Math.min(100, parseFloat(percentage.toFixed(2)));
-});
-
+  const percentage = (userInfo.value.storage / userInfo.value.total_storage) * 100
+  return Math.min(100, parseFloat(percentage.toFixed(2)))
+})
 
 // 格式化存储显示
 const formattedStorage = computed(() => {
   const MB = userInfo.value.storage / (1024 * 1024)
-  // const MB = 45895785 / (1024 * 1024)
+  return MB.toFixed(2) + ' MB'
+})
+// 总存储空间
+const formattedAllStorage = computed(() => {
+  const MB = userInfo.value.total_storage / (1024 * 1024)
   return MB.toFixed(2) + ' MB'
 })
 

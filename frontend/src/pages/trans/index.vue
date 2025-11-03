@@ -33,7 +33,7 @@
               <span>上传文档</span>
             </button>
             <div class="title phone_show">点击按钮选择添加文档</div>
-            <div class="tips">支持格式{{ accpet_tip }}，建议文件≤30MB</div>
+            <div class="tips">支持格式{{ accpet_tip }}，建议文件≤50MB</div>
           </div>
         </el-upload>
       </div>
@@ -759,8 +759,9 @@ function getStorageInfo() {
   storage().then((res) => {
     if (res.code == 200) {
       const storage = res.data.used_storage
+      const total_storage = res.data.total_storage
       // 更新存储空间
-      userStore.updateStorage(storage)
+      userStore.updateStorage({storage,total_storage})
       storageTotal.value = (res.data.total_storage / (1024 * 1024)).toFixed(2)
       storageUsed.value = res.data.used_storage
       storagePercentage.value = res.data.percentage

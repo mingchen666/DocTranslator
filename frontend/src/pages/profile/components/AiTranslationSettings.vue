@@ -13,7 +13,7 @@
       <!-- 服务商选择 -->
       <el-form-item label="服务商" prop="provider">
         <el-radio-group v-model="form.provider">
-          <el-radio-button label="openai" :disabled="isVIP">OpenAI</el-radio-button>
+          <el-radio-button label="openai" :disabled="isVIP">OpenAI格式</el-radio-button>
           <el-radio-button label="member" :disabled="!isVIP">DocTranslator 会员</el-radio-button>
         </el-radio-group>
       </el-form-item>
@@ -33,7 +33,7 @@
               </el-tag>
             </span>
           </template>
-          <el-input v-model="form.api_url" placeholder="https://api.ezworkapi.top" clearable />
+          <el-input v-model="form.api_url" placeholder="一般来说必须以/v1结尾,如：https://api.ezworkapi.top/v1" clearable />
         </el-form-item>
         <el-form-item label="API密钥" prop="api_key">
           <el-input v-model="form.api_key" placeholder="输入您的API Key" show-password clearable />

@@ -43,3 +43,4 @@ BabelDOC==0.3.17
 # 其他工具
 python-dotenv==1.0.1
 pymdown-extensions
+openai==1.65.3
