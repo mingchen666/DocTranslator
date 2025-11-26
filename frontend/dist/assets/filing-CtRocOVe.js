@@ -1,1 +1,0 @@
-import{_ as o,o as s,c,a as n}from"./index-B_1xGcKF.js";const t={},a={class:"filing"};function r(_,e){return s(),c("div",a,e[0]||(e[0]=[n("p",null,"© 2025 DocTranslator 1.4.0 保留所有权利",-1)]))}const l=o(t,[["render",r],["__scopeId","data-v-c43c2b67"]]);export{l as F};
