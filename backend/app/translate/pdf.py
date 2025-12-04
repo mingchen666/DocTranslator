@@ -154,7 +154,7 @@ def start(trans):
 
         # 初始化任务状态
         db.execute(
-            "UPDATE translate SET status='processing', process=0, start_at=NOW() WHERE id=%s",
+            "UPDATE translate SET status='process', process=0, start_at=NOW() WHERE id=%s",
             trans['id']
         )
 
