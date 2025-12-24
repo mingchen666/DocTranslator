@@ -77,8 +77,14 @@ const user = reactive({
 // 表单验证规则
 const rules = reactive({
   oldpwd: [{ required: true, message: '请填写原密码', trigger: 'blur' }],
-  newpwd: [{ required: true, message: '请填写新密码', trigger: 'blur' }],
-  newpwd_confirmation: [{ required: true, message: '请填写确认密码', trigger: 'blur' }]
+  newpwd: [
+    { required: true, message: '请填写新密码', trigger: 'blur' },
+    { min: 6, message: '新密码长度不能少于6位', trigger: 'blur' }
+  ],
+  newpwd_confirmation: [
+    { required: true, message: '请填写确认密码', trigger: 'blur' },
+    { min: 6, message: '确认密码长度不能少于6位', trigger: 'blur' }
+  ]
 })
 
 // 提交修改密码
@@ -114,7 +120,6 @@ const doChangePassword = async (form) => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #6a11cb, #2575fc);
   padding: 20px;
 }
 

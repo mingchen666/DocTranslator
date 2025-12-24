@@ -39,7 +39,7 @@
                 name="file"
                 :before-upload="upload_before"
                 :action="uploadUrl"
-                :headers="{ token: store.token }"
+                :headers="{ token: userStore.token }"
                 :show-file-list="false"
                 :on-success="(response, file, fileList) => upload_success(response)"
                 class="blue_color"
