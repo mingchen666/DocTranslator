@@ -1,3 +1,18 @@
+🎉 **DocTranslator Pro 版本现已发布！** 欢迎体验，功能更强大！
+
+## ✨ Pro 版本核心优势
+
+- **智能分块策略**: 能更好地识别段落、列表等结构，避免在句子中间或表格行中打断，提升翻译质量与上下文连贯性。
+- **成本优化**: 通过更高效的提示词设计和注入策略，显著减少 Token 消耗，有效降低翻译成本。
+- **术语库**: 支持用户定义术语对照表，确保专业术语翻译的准确性和一致性。
+- **翻译记忆库**: 智能复用历史翻译，提升效率、降低成本。
+- **AI模型服务商管理**: 可配置 OpenAI, Qwen, DeepSeek 等多种大模型，用户可根据需求选择或由系统智能路由。
+- **批量处理**: 支持文档上传选择多个术语库和翻译记忆，并发翻译，处理效率更高更准确。
+- **消耗统计**: 提供Token消耗统计等管理后台功能。
+
+[![Pro版在线体验](https://img.shields.io/badge/Pro%20版-在线体验-71a7f4?style=for-the-badge&logoColor=white)](https://pro.doctranslator.cn)  
+
+---
 
 # 📄 DocTranslator - 文档 AI 翻译工具 🚀
 
@@ -59,6 +74,22 @@
 ![后端页面2](docs/images/image4.png)
 
 
+## 一键部署
+```bash
+
+git clone https://github.com/mingchen666/DocTranslator.git
+cd DocTranslator
+
+# 2. 配置后端环境变量 (重要！)
+cp backend/.env.example backend/.env
+# 然后编辑 backend/.env 文件，填写数据库等信息
+
+# 3. 一键部署
+chmod +x deploy.sh && ./deploy.sh
+
+```
+
+
 ## 🚀 本地开发
 
 ### 1. 克隆项目
@@ -117,6 +148,7 @@ pnpm dev
 - **后端 API**：http://localhost:5000  
 
 ---
+
 
 ## 🐳 一、Docker 部署（在线镜像beta版本）
 

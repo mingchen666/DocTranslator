@@ -1,3 +1,20 @@
+🎉 **DocTranslator Pro is now live!** Welcome to experience its enhanced capabilities!
+
+## ✨ Key Advantages of the Pro Version
+
+- **Intelligent Chunking Strategy**: Better recognizes structures such as paragraphs and lists, avoiding breaks mid-sentence or within table rows, thereby improving translation quality and contextual coherence.  
+- **Cost Optimization**: Significantly reduces token consumption through more efficient prompt design and injection strategies, effectively lowering translation costs.  
+- **Termbase Support**: Allows users to define custom terminology glossaries to ensure accuracy and consistency in translating specialized terms.  
+- **Translation Memory**: Intelligently reuses previous translations to boost efficiency and reduce costs.  
+- **AI Model Provider Management**: Supports configuration of multiple large language models including OpenAI, Qwen, and DeepSeek, enabling users to select based on their needs or let the system intelligently route requests.  
+- **Batch Processing**: Enables uploading documents and selecting multiple termbases and translation memories for concurrent translation, achieving higher efficiency and accuracy.  
+- **Usage Analytics**: Provides management dashboard features such as token consumption statistics.
+
+[![Pro version online experience](https://img.shields.io/badge/Pro%20version-online-71a7f4?style=for-the-badge&logoColor=white)](https://pro.doctranslator.cn)  
+
+
+---
+
 # 📄 DocTranslator - Document AI Translation Tool 🚀
 
 **DocTranslator** is a powerful document AI translation tool that supports translation of multiple file formats, is compatible with OpenAI format APIs, and supports batch operations and multi-threading. Whether you're an individual user or a corporate team, DocTranslator can help you efficiently complete document translation tasks! ✨
