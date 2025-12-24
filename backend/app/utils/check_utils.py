@@ -1,17 +1,24 @@
-# utils/ai_utils.py
 import openai
 from io import BytesIO
-import fitz  # PyMuPDF
+import fitz
 import logging
 
 
 class AIChecker:
     @staticmethod
-    def check_openai_connection(api_url: str, api_key: str, model: str, timeout: int = 10):
+    def check_openai_connection(api_url: str, api_key: str, model: str, timeout: int = 30):
         """OpenAI连通性测试"""
         try:
             openai.api_key = api_key
-            openai.base_url = api_url
+            base_url = api_url
+
+            # 确保URL以/v1结尾
+            if not base_url.endswith("/v1"):
+                if base_url.endswith("/"):
+                    base_url = base_url + "v1"
+                else:
+                    base_url = base_url + "/v1"
+            openai.base_url = base_url
 
             # 发送一个简单的聊天请求
             response = openai.chat.completions.create(
@@ -20,6 +27,7 @@ class AIChecker:
                 timeout=timeout
             )
             # 返回连接成功和响应内容
+            print(f"OpenAI连接成功: {response}")
             return True, response.choices[0].message.content
         except Exception as e:
             logging.error(f"OpenAI连接测试失败: {str(e)}")

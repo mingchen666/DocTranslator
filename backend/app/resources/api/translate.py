@@ -369,7 +369,7 @@ class TranslateProcessResource(Resource):
 class TranslateDeleteResource(Resource):
     @jwt_required()
     def delete(self, id):
-        """软删除翻译记录[^4]"""
+        """软删除翻译记录"""
         # 查询翻译记录
         customer_id = get_jwt_identity()
         translate = Translate.query.filter_by(
@@ -451,7 +451,7 @@ class TranslateDownloadAllResource(Resource):
 class OpenAICheckResource(Resource):
     @jwt_required()
     def post(self):
-        """OpenAI接口检测[^6]"""
+        """OpenAI接口检测"""
         data = request.form
         required = ['api_url', 'api_key', 'model']
         if not all(k in data for k in required):
@@ -464,7 +464,6 @@ class OpenAICheckResource(Resource):
         )
 
         return APIResponse.success({'valid': is_valid, 'message': msg})
-
 
 class PDFCheckResource(Resource):
     @jwt_required()
