@@ -442,32 +442,7 @@ const prompt_id_change = (id) => {
     settingsForm.value.aiServer.prompt_id = id
   }
 }
-//检查功能实现
-function check1() {
-  checking.value = true
-  check_text.value = ''
-  checkOpenAI(form.value)
-    .then((data) => {
-      checking.value = false
-      if (data.code == 200) {
-        check_text.value = 'success'
-      } else {
-        check_text.value = 'fail'
-        ElMessage({
-          message: data.message,
-          type: 'error'
-        })
-      }
-    })
-    .catch((err) => {
-      checking.value = false
-      check_text.value = 'fail'
-      ElMessage({
-        message: '接口异常',
-        type: 'error'
-      })
-    })
-}
+
 // doc2x检查
 function docx2_check1() {
   docx2_loading.value = true

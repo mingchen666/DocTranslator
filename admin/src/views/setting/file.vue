@@ -217,6 +217,105 @@
             <el-empty description="暂无翻译文件" />
           </div>
         </el-tab-pane>
+        <el-tab-pane name="doc2x_results">
+          <template #label>
+            <div class="tab-label">
+              <el-icon class="tab-icon translate"><Files /></el-icon>
+              <span>doc2x文档</span>
+              <el-tag size="small" effect="light" class="size-tag">
+                {{ formatSize(fileData.doc2x_results?.size || 0) }}
+              </el-tag>
+            </div>
+          </template>
+
+          <!-- 翻译文档内容区 -->
+          <template v-if="hasData('doc2x_results')">
+            <div class="category-actions">
+              <el-button
+                type="danger"
+                size="small"
+                @click="confirmDelete('category', 'doc2x_results')"
+                class="delete-category-btn"
+              >
+                <el-icon><Delete /></el-icon>删除全部文件
+              </el-button>
+            </div>
+
+            <el-collapse v-model="expandedDates.doc2x_results" accordion class="date-collapse">
+              <el-collapse-item
+                v-for="(dateData, date) in fileData.doc2x_results.dates"
+                :key="date"
+                :name="date"
+                class="date-item"
+              >
+                <template #title>
+                  <div class="date-header">
+                    <el-icon size="20" class="date-icon"><Calendar /></el-icon>
+                    <span class="date-text">{{ date }}</span>
+                    <div class="date-meta">
+                      <span class="file-count">{{ dateData.files.length }}个文件</span>
+                      <span class="date-size">共{{ formatSize(dateData.size) }}</span>
+                    </div>
+                    <div class="date-actions">
+                      <el-button
+                        type="danger"
+                        size="small"
+                        @click.stop="confirmDelete('date', `doc2x_results/${date}`)"
+                        class="delete-date-btn"
+                      >
+                        <el-icon><Delete /></el-icon>删除本日所有文件
+                      </el-button>
+                    </div>
+                  </div>
+                </template>
+
+                <div class="file-table-container">
+                  <el-table :data="dateData.files" border stripe empty-text="该日期没有文件" class="file-table">
+                    <el-table-column label="文件名" width="220">
+                      <template #default="{ row }">
+                        <div class="file-name-cell">
+                          <el-icon class="file-icon">
+                            <component :is="getFileIcon(row.name)" />
+                          </el-icon>
+                          <span class="file-name">{{ row.name }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+
+                    <el-table-column label="大小" width="120">
+                      <template #default="{ row }">
+                        <el-tag size="small" effect="plain">
+                          {{ formatSize(row.size) }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+
+                    <el-table-column label="文件路径" min-width="300">
+                      <template #default="{ row }">
+                        <el-tooltip :content="row.path" placement="top">
+                          <span class="file-path">{{ row.path }}</span>
+                        </el-tooltip>
+                      </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" width="120" align="center">
+                      <template #default="{ row }">
+                        <el-popconfirm title="确定要删除此文件吗？" @confirm="handleDeleteFile(row.path)">
+                          <template #reference>
+                            <el-button type="danger" size="small" round> 删除 </el-button>
+                          </template>
+                        </el-popconfirm>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+          </template>
+          <div v-else class="empty-container">
+            <el-empty description="暂无doc2x处理文件" />
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -243,12 +342,14 @@ import { ElMessage, ElMessageBox } from "element-plus"
 const loading = ref(false)
 const fileData = ref({
   uploads: { size: 0, dates: {} },
-  translate: { size: 0, dates: {} }
+  translate: { size: 0, dates: {} },
+  doc2x_results: { size: 0, dates: {} }
 })
 const activeTab = ref("uploads")
 const expandedDates = ref({
   uploads: [],
-  translate: []
+  translate: [],
+  doc2x_results: []
 })
 
 // 计算是否有数据
@@ -270,7 +371,8 @@ const loadData = async () => {
       // 合并数据确保两个分类都存在
       fileData.value = {
         uploads: res.data.uploads || { size: 0, dates: {} },
-        translate: res.data.translate || { size: 0, dates: {} }
+        translate: res.data.translate || { size: 0, dates: {} },
+        doc2x_results: res.data.doc2x_results || { size: 0, dates: {} }
       }
 
       // 默认展开每个分类的第一个日期

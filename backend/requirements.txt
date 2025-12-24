@@ -38,8 +38,8 @@ Shapely==2.0.7
 
 # AI & 翻译相关
 tiktoken
-BabelDOC==0.3.17
-
+# BabelDOC==0.3.17
+BabelDOC==0.5.22
 # 其他工具
 python-dotenv==1.0.1
 pymdown-extensions

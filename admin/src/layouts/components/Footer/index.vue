@@ -2,13 +2,13 @@
 const VITE_APP_TITLE = import.meta.env.VITE_APP_TITLE
 
 const openWebsite = () => {
-  window.open("https://github.com/mingchen666/DocTranslator", "_blank")
+  window.open("https://www.doctranslator.cn/", "_blank")
 }
 </script>
 
 <template>
   <footer class="layout-footer">
-    <span class="copyright-link" @click="openWebsite"> DocTranslator 1.3.4 ©Powerd by MingChen </span>
+    <span class="copyright-link" @click="openWebsite"> DocTranslator 1.4.3 ©Powerd by MingChen </span>
   </footer>
 </template>
 
