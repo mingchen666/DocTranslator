@@ -4,11 +4,12 @@ from app.extensions import db
 from app.models.comparison import Comparison
 from app.models.prompt import Prompt
 from app.models.translate import Translate
-from app.translate import word, excel, powerpoint, pdf, txt, csv_handle, md, to_translate
+from app.translate import word, excel, powerpoint, pdf, gptpdf, txt, csv_handle, md, to_translate
 
 
 def main_wrapper(task_id, config, origin_path):
     """
+    翻译任务核心逻辑
     :param task_id: 任务ID
     :param origin_path: 原始文件绝对路径
     :param target_path: 目标文件绝对路径
@@ -62,12 +63,19 @@ def main_wrapper(task_id, config, origin_path):
         return False
 
 
-
+def pdf_handler(config, origin_path):
+    return gptpdf.start(config)
+    # if pdf.is_scanned_pdf(origin_path):
+    #     return gptpdf.start(config)
+    # else:
+    #     # 这里均使用gptpdf实现
+    #     return gptpdf.start(config)
+    #     # return pdf.start(config)
 
 
 def _init_translate_config(trans):
     """
-    初始化翻译配置[^5]
+    初始化翻译配置
     :param trans: 翻译任务对象
     """
     # 设置OpenAI API
@@ -75,13 +83,24 @@ def _init_translate_config(trans):
         set_openai_config(trans.api_url, trans.api_key)
 
 
-
 def set_openai_config(api_url, api_key):
-    """
-    设置OpenAI API配置[^6]
-    """
+    """设置OpenAI API配置"""
     import openai
-    openai.api_base = api_url
+
+    # 确保URL以/v1/结尾
+    base_url = api_url
+    if not base_url.endswith("/v1/"):
+        if base_url.endswith("/v1"):
+            # 如果以 /v1 结尾，添加 /
+            base_url = base_url + "/"
+        elif base_url.endswith("/"):
+            # 如果以 / 结尾，添加 v1/
+            base_url = base_url + "v1/"
+        else:
+            # 如果不以 / 结尾，添加 /v1/
+            base_url = base_url + "/v1/"
+
+    openai.base_url = base_url
     openai.api_key = api_key
 
 

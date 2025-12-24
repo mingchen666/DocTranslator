@@ -490,11 +490,19 @@ def count_text(text):
 
 def init_openai(url, key):
     openai.api_key = key
-    if "v1" not in url:
-        if url[-1] == "/":
-            url += "v1/"
+
+    # 确保URL以/v1/结尾
+    if not url.endswith("/v1/"):
+        if url.endswith("/v1"):
+            # 如果以 /v1 结尾，添加 /
+            url = url + "/"
+        elif url.endswith("/"):
+            # 如果以 / 结尾，添加 v1/
+            url = url + "v1/"
         else:
-            url += "/v1/"
+            # 如果不以 / 结尾，添加 /v1/
+            url = url + "/v1/"
+
     openai.base_url = url
 
 
