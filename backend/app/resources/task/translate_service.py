@@ -13,7 +13,7 @@ import pytz
 class TranslateEngine:
     def __init__(self, task_id):
         self.task_id = task_id
-        self.app = current_app._get_current_object()  # 获取真实app对象
+        self.app = current_app._get_current_object()
 
     def execute(self):
         """启动翻译任务入口"""
