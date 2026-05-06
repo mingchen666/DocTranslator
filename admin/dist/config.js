@@ -1,1 +1,1 @@
-window.ipConfig = "/api"
+window.ipConfig = "https://ezwork-api.erui.com"

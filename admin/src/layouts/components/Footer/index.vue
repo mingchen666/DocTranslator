@@ -6,7 +6,7 @@ const openWebsite = () => {
 
 <template>
   <footer class="layout-footer">
-    <span class="copyright-link" @click="openWebsite"> DocTranslator 1.5.0 ©Powerd by MingChen </span>
+    <span class="copyright-link" @click="openWebsite"> DocTranslator 1.6.0 © Powered by MingChen </span>
   </footer>
 </template>
 

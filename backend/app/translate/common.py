@@ -214,7 +214,8 @@ def is_supported_file(filepath: str) -> bool:
         '.pdf',
         '.txt',
         '.csv',
-        '.md'
+        '.md',
+        '.html', '.htm'
     ]
     ext = get_file_extension(filepath)
     return ext in supported_extensions

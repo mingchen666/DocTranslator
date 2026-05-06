@@ -190,7 +190,7 @@ def _protect_special_syntax(content: str) -> Tuple[str, List[ProtectedBlock]]:
 
     # 保护HTML注释
     content = re.sub(
-        r'',
+        r'<!--[\s\S]*?-->',
         lambda m: protect(m, 'html_comment'),
         content
     )

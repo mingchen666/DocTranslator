@@ -1,48 +1,57 @@
 <template>
-  <div class="settings-container">
-    <!-- VIP Member Card -->
-    <VipCard v-if="isVIP"></VipCard>
+  <div class="ai-settings-container">
+    <VipCard v-if="isVIP" />
     <el-form
       v-else
       ref="formRef"
       :model="form"
       :rules="rules"
-      label-width="120px"
       label-position="top"
+      class="settings-form"
     >
-      <!-- 服务商选择 -->
       <el-form-item label="服务商" prop="provider">
-        <el-radio-group v-model="form.provider">
-          <el-radio-button label="openai" :disabled="isVIP">OpenAI</el-radio-button>
-          <el-radio-button label="member" :disabled="!isVIP">DocTranslator 会员</el-radio-button>
+        <el-radio-group v-model="form.provider" class="provider-group">
+          <el-radio-button label="openai" :disabled="isVIP">
+            <div class="provider-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/></svg>
+              <span>OpenAI</span>
+            </div>
+          </el-radio-button>
+          <el-radio-button label="member" :disabled="!isVIP">
+            <div class="provider-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <span>会员服务</span>
+            </div>
+          </el-radio-button>
         </el-radio-group>
       </el-form-item>
-      <!-- OpenAI配置 -->
+
       <template v-if="form.provider === 'openai'">
         <el-form-item prop="api_url">
           <template #label>
             <span class="label-with-ad">
-              API地址
+              API 地址
               <el-tag
-                size="mini"
+                size="small"
                 type="warning"
-                style="margin-left: 8px; cursor: pointer; font-size: medium"
+                effect="light"
+                style="margin-left: 8px; cursor: pointer;"
                 @click="visitSite"
               >
-                🔥 推荐使用在线api中转站
+                推荐中转站
               </el-tag>
             </span>
           </template>
-          <el-input v-model="form.api_url" placeholder="一般来说必须以/v1结尾,如：https://api.ezworkapi.top/v1" clearable />
+          <el-input v-model="form.api_url" placeholder="须以 /v1 结尾，如 https://api.ezworkapi.top/v1" clearable />
         </el-form-item>
-        <el-form-item label="API密钥" prop="api_key">
-          <el-input v-model="form.api_key" placeholder="输入您的API Key" show-password clearable />
+        <el-form-item label="API 密钥" prop="api_key">
+          <el-input v-model="form.api_key" placeholder="输入您的 API Key" show-password clearable />
         </el-form-item>
       </template>
-      <!-- 操作按钮 -->
+
       <el-form-item>
         <div class="form-actions">
-          <el-button type="primary" @click="submitForm" :loading="saving"> 保存设置 </el-button>
+          <el-button type="primary" @click="submitForm" :loading="saving">保存设置</el-button>
           <el-button
             :type="testButtonType"
             @click="testConnection"
@@ -55,7 +64,7 @@
             <template v-else-if="testResult === 'fail'">
               <el-icon class="error-icon"><CircleClose /></el-icon> 连接失败
             </template>
-            <template v-else> 检查连接 </template>
+            <template v-else>检查连接</template>
           </el-button>
         </div>
       </el-form-item>
@@ -71,6 +80,7 @@ import { ElMessage } from 'element-plus'
 import VipCard from './VipCard.vue'
 import { useTranslateStore } from '@/store/translate'
 import { useUserStore } from '@/store/user'
+
 const translateStore = useTranslateStore()
 const userStore = useUserStore()
 
@@ -86,7 +96,6 @@ const saving = ref(false)
 const testing = ref(false)
 const testResult = ref('')
 
-// 计算按钮类型
 const testButtonType = computed(() => {
   if (testResult.value === 'success') return 'success'
   if (testResult.value === 'fail') return 'danger'
@@ -103,24 +112,19 @@ const rules = {
   api_key: [{ required: true, message: '请输入API Key', trigger: 'blur' }]
 }
 
-// 是否可以测试连接
 const canTestConnection = computed(() => {
-  return form.provider === 'openai' && form.api_url && form.api_key
+  return form.value.provider === 'openai' && form.value.api_url && form.value.api_key
 })
 
-// 测试连接
 const testConnection = async () => {
   if (!canTestConnection.value) return
-
   try {
     testing.value = true
     testResult.value = ''
-
     const res = await checkOpenAI({
-      api_url: form.api_url,
-      api_key: form.api_key
+      api_url: form.value.api_url,
+      api_key: form.value.api_key
     })
-
     testResult.value = res.code === 200 ? 'success' : 'fail'
   } catch (error) {
     testResult.value = 'fail'
@@ -129,7 +133,6 @@ const testConnection = async () => {
   }
 }
 
-// 提交表单
 const submitForm = async () => {
   try {
     await formRef.value.validate()
@@ -145,7 +148,7 @@ const submitForm = async () => {
     saving.value = false
   }
 }
-// 初始化
+
 onMounted(() => {
   form.value = {
     provider: 'openai',
@@ -156,11 +159,31 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-/* 基础设置 */
-.settings-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  // padding: 0 15px;
+.ai-settings-container {
+  padding: 4px 0;
+}
+
+.settings-form {
+  max-width: 600px;
+}
+
+.provider-group {
+  .provider-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.label-with-ad {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .form-actions {
@@ -168,33 +191,11 @@ onMounted(() => {
   gap: 12px;
 
   .el-button {
-    flex: 1;
-
-    // 成功状态按钮
-    &.el-button--success {
-      background-color: var(--el-color-success-light-9);
-      border-color: var(--el-color-success-light-7);
-      color: var(--el-color-success);
-
-      &:hover {
-        background-color: var(--el-color-success-light-7);
-      }
-    }
-
-    // 失败状态按钮
-    &.el-button--danger {
-      background-color: var(--el-color-danger-light-9);
-      border-color: var(--el-color-danger-light-7);
-      color: var(--el-color-danger);
-
-      &:hover {
-        background-color: var(--el-color-danger-light-7);
-      }
-    }
+    min-width: 120px;
   }
 
   .el-icon {
-    margin-right: 6px;
+    margin-right: 4px;
     font-size: 14px;
   }
 
@@ -206,25 +207,14 @@ onMounted(() => {
     color: var(--el-color-danger);
   }
 }
-.ad-banner {
-  background-color: #fff8e6;
-  padding: 3px 10px;
-  border-radius: 4px;
-  margin-top: 5px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.ad-banner:hover {
-  background-color: #fffaf0;
-}
-@media (max-width: 768px) {
-  .label-with-ad {
-    display: flex;
+
+@media (max-width: 576px) {
+  .form-actions {
     flex-direction: column;
-  }
-  .ad-banner {
-    padding: 5px;
-    text-align: center;
+
+    .el-button {
+      width: 100%;
+    }
   }
 }
 </style>

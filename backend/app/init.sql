@@ -222,6 +222,26 @@ INSERT INTO `translate` (`id`, `translate_no`, `uuid`, `customer_id`, `rand_user
 -- --------------------------------------------------------
 
 --
+-- 表的结构 `mcp_api_key`
+--
+
+CREATE TABLE `mcp_api_key` (
+  `id` int(11) NOT NULL,
+  `key_hash` varchar(64) NOT NULL,
+  `key_prefix` varchar(12) NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `customer_id` int(11) NOT NULL,
+  `scope` enum('user','admin') DEFAULT 'user',
+  `config` json NOT NULL,
+  `status` enum('active','revoked') DEFAULT 'active',
+  `created_at` datetime DEFAULT NULL,
+  `last_used_at` datetime DEFAULT NULL,
+  `deleted_flag` enum('N','Y') DEFAULT 'N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
 -- 表的结构 `user`
 --
 
@@ -301,6 +321,13 @@ ALTER TABLE `translate`
   ADD PRIMARY KEY (`id`);
 
 --
+-- 表的索引 `mcp_api_key`
+--
+ALTER TABLE `mcp_api_key`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `idx_key_hash` (`key_hash`);
+
+--
 -- 表的索引 `user`
 --
 ALTER TABLE `user`
@@ -357,6 +384,12 @@ ALTER TABLE `setting`
 --
 ALTER TABLE `translate`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- 使用表AUTO_INCREMENT `mcp_api_key`
+--
+ALTER TABLE `mcp_api_key`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- 使用表AUTO_INCREMENT `user`

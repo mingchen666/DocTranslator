@@ -98,7 +98,7 @@ class FileUploadResource(Resource):
     @staticmethod
     def allowed_file(filename):
         # """验证文件类型是否允许"""# 暂不支持PDF 'pdf',
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx','pdf', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc'}
+        ALLOWED_EXTENSIONS = {'docx', 'xlsx','pdf', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     @staticmethod

@@ -6,6 +6,7 @@ from . import pdf
 from . import txt
 from . import csv_handle
 from . import md
+from . import html
 
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     'txt',
     'csv_handle', 
     'md',
+    'html',
 ]

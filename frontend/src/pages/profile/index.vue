@@ -1,33 +1,35 @@
 <template>
   <div class="personal-center-container">
-    <!-- 主内容区 - 整个页面可滚动 -->
     <div class="scrollable-content-area">
       <div class="main-content-wrapper">
-        <!-- PC端左侧导航 -->
         <el-menu class="side-nav" :default-active="activeTab" @select="handleTabChange">
+          <div class="nav-header">
+            <el-avatar :size="36" :src="userInfo.avatar || defaultAvatar" />
+            <div class="nav-user-info">
+              <span class="nav-username">{{ userInfo.name || userInfo.email || '用户' }}</span>
+              <span class="nav-role" :class="userInfo.level">{{ userInfo.level === 'vip' ? '尊享会员' : '普通用户' }}</span>
+            </div>
+          </div>
+          <el-divider style="margin: 8px 0 12px;" />
           <el-menu-item index="basic">
-            <template #title>
-              <el-icon><User /></el-icon>
-              <span>基本信息</span>
-            </template>
+            <el-icon><User /></el-icon>
+            <span>基本信息</span>
           </el-menu-item>
           <el-menu-item index="security">
-            <template #title>
-              <el-icon><Lock /></el-icon>
-              <span>账号安全</span>
-            </template>
+            <el-icon><Lock /></el-icon>
+            <span>账号安全</span>
           </el-menu-item>
           <el-menu-item index="translation">
-            <template #title>
-              <el-icon><Setting /></el-icon>
-              <span>翻译设置</span>
-            </template>
+            <el-icon><Setting /></el-icon>
+            <span>翻译设置</span>
+          </el-menu-item>
+          <el-menu-item index="mcp">
+            <el-icon><Connection /></el-icon>
+            <span>MCP 配置</span>
           </el-menu-item>
         </el-menu>
 
-        <!-- 右侧内容区 -->
         <div class="content-card-wrapper">
-          <!-- 移动端顶部导航 -->
           <div class="mobile-tabs-container">
             <el-tabs v-model="activeTab" class="mobile-tabs">
               <el-tab-pane name="basic">
@@ -54,40 +56,19 @@
                   </div>
                 </template>
               </el-tab-pane>
+              <el-tab-pane name="mcp">
+                <template #label>
+                  <div class="tab-label">
+                    <el-icon><Connection /></el-icon>
+                    <span>MCP 配置</span>
+                  </div>
+                </template>
+              </el-tab-pane>
             </el-tabs>
           </div>
 
-          <!-- 用户概览-->
-          <el-card v-if="false" class="user-profile-card" shadow="hover">
-            <div class="profile-header">
-              <el-avatar :size="72" :src="userInfo.avatar || defaultAvatar" />
-              <div class="profile-info">
-                <div class="username">
-                  {{ userInfo.username }}
-                  <el-tag
-                    v-if="userInfo.level === 'vip'"
-                    class="vip-tag"
-                    effect="dark"
-                    type="warning"
-                  >
-                    <img src="@/assets/vip.png" class="vip-icon" /> VIP会员
-                  </el-tag>
-                </div>
-                <div class="user-meta">
-                  <span class="email">
-                    <el-icon><Message /></el-icon>
-                    {{ userInfo.email }}
-                  </span>
-                  <span class="register-date">
-                    <el-icon><Calendar /></el-icon>
-                    注册于: {{ formatTime(userInfo.created_at) || '-' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </el-card>
-          <user-card :userInfo="userInfo"></user-card>
-          <!-- 内容卡片 -->
+          <user-card :userInfo="userInfo" />
+
           <el-card class="content-card" shadow="never">
             <basic-info
               v-show="activeTab === 'basic'"
@@ -104,33 +85,35 @@
               :settings="translationSettings"
               @save-settings="handleSaveTranslationSettings"
             />
+            <mcp-config
+              v-show="activeTab === 'mcp'"
+            />
           </el-card>
         </div>
       </div>
     </div>
-    <!-- 备案信息 -->
     <Filing />
   </div>
 </template>
 
 <script setup>
 import Filing from '@/components/Filing.vue'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatTime } from '@/utils/tools'
-import { User, Lock, Setting, Message, Calendar } from '@element-plus/icons-vue'
+import { User, Lock, Setting, Connection } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import defaultAvatar from '@/assets/avator.png'
 
 import BasicInfo from './components/BasicInfo.vue'
 import SecuritySettings from './components/SecuritySettings.vue'
 import TranslationSettings from './components/TranslationSettings.vue'
+import McpConfig from './mcp.vue'
 import UserCard from './components/UserCard.vue'
+
 const userStore = useUserStore()
 const router = useRouter()
 const activeTab = ref('basic')
 
-// 用户数据
 const userInfo = ref({
   email: '',
   level: '',
@@ -138,7 +121,6 @@ const userInfo = ref({
   created_at: ''
 })
 
-// 翻译设置（完整配置）
 const translationSettings = ref({
   server: 'openai',
   api_url: 'https://api.openai.com',
@@ -147,8 +129,7 @@ const translationSettings = ref({
   backup_model: '',
   langs: ['中文', '英语'],
   type: ['trans_text', 'trans_text_only', 'trans_text_only_new'],
-  prompt:
-    '你是一个文档翻译助手，请将以下文本、单词或短语直接翻译成{target_lang}，不返回原文本。如果文本中包含{target_lang}文本、特殊名词（比如邮箱、品牌名、单位名词如mm、px、℃等）、无法翻译等特殊情况，请直接返回原文而无需解释原因。遇到无法翻译的文本直接返回原内容。保留多余空格。',
+  prompt: '',
   threads: 10,
   comparison_id: '',
   prompt_id: '',
@@ -158,33 +139,23 @@ const translationSettings = ref({
   origin_lang: ''
 })
 
-// 初始化从store获取用户信息
 onMounted(() => {
   userInfo.value = userStore.userInfo
 })
 
-// 切换标签页
 const handleTabChange = (key) => {
   activeTab.value = key
 }
 
-// 处理更新基本信息
 const handleUpdateInfo = (newInfo) => {
-  console.log('模拟更新用户信息:', newInfo)
-  userInfo.value = {
-    ...userInfo.value,
-    ...newInfo
-  }
+  userInfo.value = { ...userInfo.value, ...newInfo }
 }
 
-// 处理修改密码
 const handleChangePassword = () => {
   router.push('/password')
 }
 
-// 处理保存翻译设置
 const handleSaveTranslationSettings = (settings) => {
-  console.log('保存翻译设置:', settings)
   localStorage.setItem('api_url', settings.api_url)
   localStorage.setItem('api_key', settings.api_key)
   localStorage.setItem('model', settings.model)
@@ -197,7 +168,6 @@ const handleSaveTranslationSettings = (settings) => {
   localStorage.setItem('prompt_id', settings.prompt_id)
   localStorage.setItem('doc2x_flag', settings.doc2x_flag)
   localStorage.setItem('doc2x_secret_key', settings.doc2x_secret_key)
-
   translationSettings.value = settings
 }
 </script>
@@ -208,70 +178,123 @@ const handleSaveTranslationSettings = (settings) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f3f8ff;
+  background: #f0f4f8;
 }
 
-/* 可滚动内容区域 */
 .scrollable-content-area {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
 
-  /* 滚动条样式 */
   &::-webkit-scrollbar {
     width: 6px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: var(--el-color-primary-light-5);
+    background-color: rgba(100, 116, 139, 0.25);
     border-radius: 3px;
   }
 
   &::-webkit-scrollbar-track {
-    background-color: var(--el-fill-color-light);
+    background-color: transparent;
   }
 }
 
-/* 主内容容器 */
 .main-content-wrapper {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   display: flex;
   gap: 20px;
   min-height: min-content;
 }
 
-/* 左侧导航 */
 .side-nav {
   width: 220px;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   align-self: flex-start;
-  border-radius: 12px;
+  border-radius: 16px;
   border: none;
+  padding: 16px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  .nav-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+
+    .el-avatar {
+      border: 2px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .nav-user-info {
+      min-width: 0;
+
+      .nav-username {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .nav-role {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin-top: 2px;
+
+        &.vip {
+          background: linear-gradient(135deg, #fce38a 0%, #f38181 100%);
+          color: white;
+          font-weight: 600;
+        }
+
+        &.free, &.normal {
+          background: #f1f5f9;
+          color: #64748b;
+        }
+      }
+    }
+  }
 
   .el-menu-item {
-    height: 48px;
-    line-height: 48px;
-    margin: 4px 0;
-    border-radius: 8px;
-    font-size: 15px;
-
-    &.is-active {
-      background-color: var(--el-color-primary-light-9);
-      color: var(--el-color-primary);
-      font-weight: 500;
-    }
+    height: 44px;
+    line-height: 44px;
+    margin: 2px 0;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #64748b;
+    transition: all 0.2s ease;
 
     .el-icon {
       font-size: 18px;
-      margin-right: 8px;
+      margin-right: 10px;
+    }
+
+    &:hover {
+      background-color: #f8fafc;
+      color: #334155;
+    }
+
+    &.is-active {
+      background-color: #eff6ff;
+      color: #3b82f6;
+      font-weight: 500;
+
+      .el-icon {
+        color: #3b82f6;
+      }
     }
   }
 }
 
-/* 右侧内容区 */
 .content-card-wrapper {
   flex: 1;
   min-width: 0;
@@ -281,15 +304,14 @@ const handleSaveTranslationSettings = (settings) => {
 
   .mobile-tabs-container {
     display: none;
-    // background: white;
-    // border-radius: 12px;
-    // padding: 8px;
-    // box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    // margin-bottom: 16px;
   }
 
   .mobile-tabs {
     width: 100%;
+    background: white;
+    border-radius: 12px;
+    padding: 0 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
     :deep(.el-tabs__nav) {
       width: 100%;
@@ -300,16 +322,16 @@ const handleSaveTranslationSettings = (settings) => {
     :deep(.el-tabs__item) {
       flex: 1;
       text-align: center;
-      padding: 0 12px;
-      height: 44px;
-      line-height: 44px;
-      font-size: 14px;
+      padding: 0 8px;
+      height: 46px;
+      line-height: 46px;
+      font-size: 13px;
       color: #64748b;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
 
       &.is-active {
         color: #3b82f6;
-        font-weight: 500;
+        font-weight: 600;
       }
 
       &:hover {
@@ -332,78 +354,25 @@ const handleSaveTranslationSettings = (settings) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
 
     .el-icon {
-      font-size: 16px;
+      font-size: 15px;
     }
 
     span {
-      font-size: 14px;
-    }
-  }
-
-  .user-profile-card {
-    border-radius: 12px;
-    width: 100%;
-
-    .profile-header {
-      display: flex;
-      align-items: center;
-      padding: 16px;
-
-      .el-avatar {
-        margin-right: 20px;
-        border: 2px solid var(--el-color-primary);
-      }
-
-      .profile-info {
-        flex: 1;
-
-        .username {
-          font-size: 22px;
-          font-weight: 600;
-          margin-bottom: 8px;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-
-          .vip-tag {
-            display: inline-flex;
-            align-items: center;
-
-            .vip-icon {
-              width: 16px;
-              height: 16px;
-              margin-right: 4px;
-            }
-          }
-        }
-
-        .user-meta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 16px;
-          color: var(--el-text-color-secondary);
-          font-size: 14px;
-
-          .el-icon {
-            margin-right: 4px;
-            vertical-align: middle;
-          }
-        }
-      }
+      font-size: 13px;
     }
   }
 
   .content-card {
-    border-radius: 12px;
+    border-radius: 16px;
     min-height: 400px;
     border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 }
 
-/* 响应式设计 */
 @media screen and (max-width: 992px) {
   .main-content-wrapper {
     flex-direction: column;
@@ -422,49 +391,39 @@ const handleSaveTranslationSettings = (settings) => {
 
 @media screen and (max-width: 576px) {
   .scrollable-content-area {
-    padding: 8px;
+    padding: 12px;
   }
 
-  .mobile-tabs {
-    :deep(.el-tabs__item) {
-      padding: 0 8px;
-      font-size: 13px;
+  .content-card-wrapper {
+    gap: 12px;
 
-      .tab-label {
-        gap: 4px;
+    .mobile-tabs {
+      border-radius: 10px;
+      padding: 0 4px;
 
-        .el-icon {
-          font-size: 14px;
-        }
+      :deep(.el-tabs__item) {
+        padding: 0 4px;
+        font-size: 12px;
+        height: 40px;
+        line-height: 40px;
 
-        span {
-          font-size: 13px;
+        .tab-label {
+          gap: 3px;
+
+          .el-icon {
+            font-size: 14px;
+          }
+
+          span {
+            font-size: 12px;
+          }
         }
       }
     }
-  }
 
-  .user-profile-card {
-    .profile-header {
-      flex-direction: column;
-      text-align: center;
-
-      .el-avatar {
-        margin-right: 0;
-        margin-bottom: 16px;
-      }
-
-      .profile-info {
-        text-align: center;
-
-        .username {
-          justify-content: center;
-        }
-
-        .user-meta {
-          justify-content: center;
-        }
-      }
+    .content-card {
+      border-radius: 12px;
+      min-height: 300px;
     }
   }
 }

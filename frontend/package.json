@@ -1,7 +1,8 @@
 {
-    "name": "ez-work",
+    "name": "DocTranslator",
     "private": true,
-    "version": "0.0.0",
+    "version": "1.6.0",
+    "description": "一个免费开源的文档翻译服务",
     "type": "module",
     "scripts": {
         "dev": "vite",

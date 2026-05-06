@@ -1,13 +1,14 @@
 node_modules/
+**/node_modules/
 ## 缓存文件
 .cache/
 ## 环境变量文件
 .env
 .env.local
 .env.*.local
+/backend/.env
 **/.env
-**/.env.*
-
+.DS_Store
 ## 日志文件
 npm-debug.log*
 yarn-debug.log*
@@ -27,9 +28,14 @@ coverage/
 *.swp
 
 ## 虚拟环境
-venv/
+.venv/
 env/
 even/
+**/storage/
+**/migrations/
+**/.venv/
+**/env/
+**/even/
 # 忽略所有 __pycache__ 文件夹
 **/__pycache__/
 *.py[cod]
@@ -37,3 +43,6 @@ even/
 .gitignore
 gitignore
 更新.txt
+backend/.env
+mcp说明.md
+

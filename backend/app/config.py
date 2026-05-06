@@ -34,7 +34,7 @@ class Config:
     UPLOAD_BASE_DIR='storage'
     UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads')
     DATE_FORMAT = "%Y-%m-%d"  # 日期格式
-    ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc'}
+    ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
     # UPLOAD_FOLDER = '/uploads'  # 建议使用绝对路径
     MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50)) * 1024 * 1024  # 50MB
     MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 100 ))* 1024 * 1024  # 默认100MB

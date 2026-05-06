@@ -8,6 +8,9 @@ Flask-SQLAlchemy==3.1.1
 Flask-Limiter==3.10.1
 Flask-Mail==0.10.0
 
+# WSGI 服务器
+gunicorn
+
 # 序列化/反序列化
 marshmallow==3.26.1
 marshmallow-sqlalchemy==1.4.1
@@ -28,6 +31,7 @@ pdfdeal==1.0.2
 pdfkit==1.0.0
 docx2pdf==0.1.8
 pandas==2.2.3
+beautifulsoup4>=4.12.0
 
 # 图像处理
 opencv-python-headless>=4.10.0.84
@@ -39,6 +43,10 @@ Shapely==2.0.7
 # AI & 翻译相关
 tiktoken
 BabelDOC==0.5.22
+# MCP 相关
+fastmcp
+a2wsgi
+uvicorn
 # 其他工具
 python-dotenv==1.0.1
 pymdown-extensions

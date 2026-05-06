@@ -33,6 +33,9 @@ from app.resources.api.translate import TranslateListResource, TranslateSettingR
     TranslateFinishCountResource,  \
      Doc2xCheckResource, TranslateStartResource, \
     TranslateDownloadAllResource
+from app.resources.api.mcp_key import McpKeyListResource, McpKeyCreateResource, McpKeyDetailResource, McpKeyRegenerateResource
+from app.resources.admin.mcp_key import AdminMcpKeyListResource, AdminMcpKeyCreateResource, AdminMcpKeyDetailResource, AdminMcpKeyRegenerateResource
+from app.resources.admin.prompt import AdminPromptListResource
 
 
 def register_routes(api):
@@ -97,6 +100,12 @@ def register_routes(api):
     api.add_resource(CreatePromptResource, '/api/prompt')
     api.add_resource(DeletePromptResource, '/api/prompt/<int:id>')
 
+    # MCP Key 管理
+    api.add_resource(McpKeyListResource, '/api/mcp/keys')
+    api.add_resource(McpKeyCreateResource, '/api/mcp/key')
+    api.add_resource(McpKeyDetailResource, '/api/mcp/key/<string:id>')
+    api.add_resource(McpKeyRegenerateResource, '/api/mcp/key/<string:id>/regenerate')
+
 
 # -------admin-----------
     api.add_resource(AdminLoginResource, '/api/admin/login')
@@ -132,4 +141,13 @@ def register_routes(api):
 
     # 系统文件存储管理
     api.add_resource(SystemStorageResource, '/api/admin/system/storage')
+
+    # 管理员提示词列表
+    api.add_resource(AdminPromptListResource, '/api/admin/prompts')
+
+    # 管理员 MCP Key 管理
+    api.add_resource(AdminMcpKeyListResource, '/api/admin/mcp/keys')
+    api.add_resource(AdminMcpKeyCreateResource, '/api/admin/mcp/key')
+    api.add_resource(AdminMcpKeyDetailResource, '/api/admin/mcp/key/<string:id>')
+    api.add_resource(AdminMcpKeyRegenerateResource, '/api/admin/mcp/key/<string:id>/regenerate')
     print("✅ 路由配置完成")  # 添加调试输出

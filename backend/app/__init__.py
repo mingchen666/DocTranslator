@@ -49,14 +49,6 @@ def create_app(config_class=None):
         #     db.session.commit()
     insert_initial_data(app)
     set_auto_increment(app)
-    insert_initial_settings(app) # 初始化默认系统配置
-    # 开发环境路由打印
-    # if app.debug:
-    #     with app.app_context():
-    #         print("\n=== 已注册路由 ===")
-    #         for rule in app.url_map.iter_rules():
-    #             methods = ','.join(rule.methods)
-    #             print(f"{rule.endpoint}: {methods} -> {rule}")
-    #         print("===================\n")
+    insert_initial_settings(app)
 
     return app

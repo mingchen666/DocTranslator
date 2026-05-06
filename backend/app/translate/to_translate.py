@@ -346,6 +346,10 @@ def _translate_openai(trans, text, model):
     if extension == '.md':
         final_prompt += "\n请保持Markdown格式不变，只翻译文本内容。"
 
+    # HTML特殊处理
+    if extension in ('.html', '.htm'):
+        final_prompt += "\n请保持HTML标签和属性不变，只翻译标签之间的文本内容。不要添加或删除任何HTML标签。"
+
     messages = [
         {"role": "system", "content": final_prompt},
         {"role": "user", "content": text}

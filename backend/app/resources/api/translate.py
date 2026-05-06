@@ -279,6 +279,8 @@ class TranslateListResource(Resource):
             return "PDF"
         elif ext in {'txt', 'md'}:
             return "文本"
+        elif ext in {'html', 'htm'}:
+            return "HTML"
         else:
             return "其他"
 

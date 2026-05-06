@@ -1,7 +1,7 @@
 import os
 from flask import current_app
 from app.models.translate import Translate
-from app.translate import word, excel, powerpoint, pdf,txt, csv_handle, md, to_translate
+from app.translate import word, excel, powerpoint, pdf,txt, csv_handle, md, html, to_translate
 
 
 def main_wrapper(task_id, config, origin_path):
@@ -33,7 +33,8 @@ def main_wrapper(task_id, config, origin_path):
             ('.pdf',): pdf,
             ('.txt',): txt,
             ('.csv',): csv_handle,
-            ('.md',): md
+            ('.md',): md,
+            ('.html', '.htm'): html
         }
 
         # 查找匹配的处理器

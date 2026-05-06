@@ -4,4 +4,5 @@ from .customer import Customer
 from .setting import Setting
 
 from .send_code import  SendCode
-__all__ = ['User', 'Customer', 'Setting','SendCode']
+from .mcp_api_key import McpApiKey
+__all__ = ['User', 'Customer', 'Setting','SendCode','McpApiKey']

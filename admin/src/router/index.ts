@@ -113,26 +113,7 @@ export const constantRoutes: RouteRecordRaw[] = [
           affix: true
         }
       },
-      {
-        path: "other",
-        component: () => import("@/views/setting/other.vue"),
-        name: "setting_other",
-        meta: {
-          title: "其他设置",
-          elIcon: "tools",
-          affix: true
-        }
-      },
-      {
-        path: "site",
-        component: () => import("@/views/setting/site.vue"),
-        name: "setting_site",
-        meta: {
-          title: "站点设置",
-          elIcon: "setting",
-          affix: true
-        }
-      },
+
       {
         path: "password",
         component: () => import("@/views/password/index.vue"),
@@ -152,7 +133,37 @@ export const constantRoutes: RouteRecordRaw[] = [
           elIcon: "files",
           affix: true
         }
-      }
+      },
+      {
+        path: "mcp",
+        component: () => import("@/views/setting/mcp.vue"),
+        name: "McpSetting",
+        meta: {
+          title: "MCP 管理",
+          elIcon: "connection",
+          affix: true
+        }
+      },
+            {
+        path: "other",
+        component: () => import("@/views/setting/other.vue"),
+        name: "setting_other",
+        meta: {
+          title: "其他设置",
+          elIcon: "tools",
+          affix: true
+        }
+      },
+      {
+        path: "site",
+        component: () => import("@/views/setting/site.vue"),
+        name: "setting_site",
+        meta: {
+          title: "站点设置",
+          elIcon: "setting",
+          affix: true
+        }
+      },
     ]
   }
 ]

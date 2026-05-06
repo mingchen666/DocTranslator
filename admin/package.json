@@ -1,16 +1,7 @@
 {
-  "name": "v3-admin-vite",
-  "version": "4.4.0",
-  "description": "一个免费开源的中后台管理系统基础解决方案，基于 Vue3、TypeScript、Element Plus、Pinia 和 Vite 等主流技术",
-  "author": {
-    "name": "pany",
-    "email": "939630029@qq.com",
-    "url": "https://github.com/pany-ang"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/un-pany/v3-admin-vite.git"
-  },
+  "name": "DocTranslator",
+  "version": "1.6.0",
+  "description": "一个免费开源的文档翻译服务",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,6 +9,7 @@
     "build:demo": "vue-tsc --noEmit && vite build --mode demo",
     "build:community": "vue-tsc --noEmit && vite build --mode community",
     "build:prod": "vue-tsc --noEmit && vite build",
+    "build": "vite build",
     "preview:stage": "pnpm build:stage && vite preview",
     "preview:prod": "pnpm build:prod && vite preview",
     "lint:eslint": "eslint --cache --max-warnings 0 \"{src,tests,types}/**/*.{vue,js,jsx,ts,tsx}\" --fix",

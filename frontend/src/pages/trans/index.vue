@@ -107,9 +107,10 @@
           </div>
           <div class="table_row phone_row" v-for="(res, index) in result" :key="index">
             <div class="table_li">
-              <img v-if="res.file_type == 'pptx'" src="@assets/PPT.png" alt="" />
-              <img v-else-if="res.file_type == 'docx'" src="@assets/DOC.png" alt="" />
-              <img v-else-if="res.file_type == 'xlsx'" src="@assets/Excel.png" alt="" />
+              <img v-if="res.file_type == 'pptx' || res.file_type == 'PPT'" src="@assets/PPT.png" alt="" />
+              <img v-else-if="res.file_type == 'docx' || res.file_type == 'Word'" src="@assets/DOC.png" alt="" />
+              <img v-else-if="res.file_type == 'xlsx' || res.file_type == 'Excel'" src="@assets/Excel.png" alt="" />
+              <img v-else-if="res.file_type == 'html' || res.file_type == 'HTML'" src="@assets/DOC.png" alt="" />
               <img v-else src="@assets/PDF.png" alt="" />
               <span class="file_name">{{ res.file_name }}</span>
             </div>
@@ -136,9 +137,10 @@
 
           <div class="table_row phone_row" v-for="(item, index) in translatesData" :key="index">
             <div class="table_li">
-              <img v-if="item.file_type == 'pptx'" src="@assets/PPT.png" alt="" />
-              <img v-else-if="item.file_type == 'docx'" src="@assets/DOC.png" alt="" />
-              <img v-else-if="item.file_type == 'xlsx'" src="@assets/Excel.png" alt="" />
+              <img v-if="item.file_type == 'pptx' || item.file_type == 'PPT'" src="@assets/PPT.png" alt="" />
+              <img v-else-if="item.file_type == 'docx' || item.file_type == 'Word'" src="@assets/DOC.png" alt="" />
+              <img v-else-if="item.file_type == 'xlsx' || item.file_type == 'Excel'" src="@assets/Excel.png" alt="" />
+              <img v-else-if="item.file_type == 'html' || item.file_type == 'HTML'" src="@assets/DOC.png" alt="" />
               <img v-else src="@assets/PDF.png" alt="" />
               <span class="file_name">{{ item.origin_filename }}</span>
             </div>
@@ -254,7 +256,7 @@ const isLoadingData = ref(true)
 const upload_load = ref(false)
 const no_data = ref(true)
 
-const accepts = '.docx,.xlsx,.pptx,.pdf,.txt,.csv,.md'
+const accepts = '.docx,.xlsx,.pptx,.pdf,.txt,.csv,.md,.html,.htm'
 const fileListShow = ref(false)
 // 改为存储正在轮询的任务UUID
 const pollingTasks = ref(new Set())
@@ -789,14 +791,25 @@ async function getTranslatesData(page, uuid) {
   await translates({ page, limit: translatesLimit.value }).then((data) => {
     if (data.code == 200) {
       data.data.data.forEach((item) => {
-        //获取文档类型
         let fileArr = item.origin_filename.split('.')
         let fileType = fileArr[fileArr.length - 1]
         let fileType_f = ''
-        if (fileType == 'docx' || fileType == 'xlsx' || fileType == 'pptx') {
-          fileType_f = fileType
+        if (item.file_type) {
+          fileType_f = item.file_type
+        } else if (fileType == 'docx' || fileType == 'doc') {
+          fileType_f = 'Word'
+        } else if (fileType == 'xlsx' || fileType == 'xls') {
+          fileType_f = 'Excel'
+        } else if (fileType == 'pptx') {
+          fileType_f = 'PPT'
+        } else if (fileType == 'pdf') {
+          fileType_f = 'PDF'
+        } else if (fileType == 'html' || fileType == 'htm') {
+          fileType_f = 'HTML'
+        } else if (fileType == 'txt' || fileType == 'md') {
+          fileType_f = '文本'
         } else {
-          fileType_f = 'other'
+          fileType_f = '其他'
         }
         item.file_type = fileType_f
       })
