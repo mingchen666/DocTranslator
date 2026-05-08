@@ -37,6 +37,7 @@ docker run -d \
   --name backend-container \
   --network my-network \
   -p 5000:5000 \
+  -p 5001:5001 \
   -v ./backend-storage:/app/storage \
   doctranslator
 

@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import time
 from flask import Flask
 import pymysql
@@ -186,15 +187,30 @@ def execute_safe_init(conn_info: dict, sql_path: Path) -> bool:
 
 def parse_sql_content(content: str) -> list:
     """改进的SQL内容解析"""
-    # 移除BOM头和注释
+    # 先移除MySQL条件注释 /*!数字 ... */
+    content = re.sub(r'/\*!\d+\s+.*?\*/', '', content, flags=re.DOTALL)
+
+    # 移除普通块注释 /* ... */
+    content = re.sub(r'/\*[^!].*?\*/', '', content, flags=re.DOTALL)
+
     lines = []
     for line in content.split('\n'):
         line = line.strip()
-        if line and not line.startswith('--'):
-            # 处理行内注释
-            line = line.split('--')[0].strip()
-            if line:
-                lines.append(line)
+        if not line or line.startswith('--'):
+            continue
+
+        # 过滤事务控制语句
+        upper = line.upper().rstrip(';').strip()
+        if upper in ('START TRANSACTION', 'COMMIT', 'ROLLBACK', 'BEGIN'):
+            continue
+
+        # 处理行内 -- 注释（但保留SET等语句中--后面的非注释部分）
+        comment_pos = line.find('--')
+        if comment_pos > 0:
+            line = line[:comment_pos].strip()
+
+        if line:
+            lines.append(line)
 
     # 合并语句（处理跨行语句）
     statements = []
@@ -203,11 +219,14 @@ def parse_sql_content(content: str) -> list:
         current += " " + line if current else line
         if ';' in line:
             stmt, _, remaining = current.partition(';')
-            statements.append(stmt.strip())
+            stmt_stripped = stmt.strip()
+            # 再次过滤事务控制语句（合并后可能跨行）
+            if stmt_stripped.upper() not in ('START TRANSACTION', 'COMMIT', 'ROLLBACK', 'BEGIN'):
+                statements.append(stmt_stripped)
             current = remaining.strip()
 
-    if current:
-        statements.append(current)
+    if current and current.upper() not in ('START TRANSACTION', 'COMMIT', 'ROLLBACK', 'BEGIN'):
+        statements.append(current.strip())
 
     return statements
 
@@ -224,10 +243,11 @@ def execute_safe_sql(cursor, sql: str):
             1060: "列已存在",
             1061: "键已存在",
             1062: "重复条目",
+            1068: "主键已存在",
             1064: "语法警告",
             1054: "未知列",
             1146: "表不存在",
-            2006: "MySQL服务器已断开",  # 连接问题
+            2006: "MySQL服务器已断开",
             2013: "查询期间丢失连接"
         }
 
