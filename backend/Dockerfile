@@ -25,4 +25,4 @@ COPY . .
 
 EXPOSE 5000 5001
 
-CMD ["sh", "-c", "python migrate_startup.py && python mcp_server.py & gunicorn --bind 0.0.0.0:5000 --workers 4 --preload --timeout 120 --access-logfile - app:app & wait"]
+CMD ["sh", "-c", "python migrate_startup.py && python mcp_server.py & gunicorn --bind 0.0.0.0:5000 --workers 4 --preload --timeout 120 --access-logfile - run:app & wait"]

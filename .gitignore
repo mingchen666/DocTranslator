@@ -45,4 +45,5 @@ gitignore
 更新.txt
 backend/.env
 mcp说明.md
-
+mcp使用指南.md
+.env
