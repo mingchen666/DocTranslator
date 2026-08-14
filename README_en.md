@@ -92,8 +92,12 @@ pip install -r requirements.txt
 ### 4. Run the Backend
 
 ```bash
-python app.py
+python run.py
 ```
+
+`python run.py` applies Alembic migrations and idempotent seed data before
+starting the development server. Run `python migrate_startup.py` to migrate
+without starting the server. Back up production databases before upgrading.
 
 ### 5. Start the Frontend and Admin Panel
 > **The /dist folder is already built and ready for deployment. If not developing locally, you can skip the following steps.**
@@ -122,70 +126,93 @@ pnpm dev
 
 ---
 
-## 🐳 Docker Deployment
+## Linux deployment (recommended)
 
-### 1. Project Structure
+We recommend Docker Engine on Linux.
 
-```plaintext
-DocTranslator/
-├── frontend/          # Frontend code
-├── admin/             # Admin panel code
-├── backend/           # Backend code
-├── nginx/             # Nginx configuration
-│   └── nginx.conf     # Nginx configuration file
-```
-
-### 2. Create Docker Network
+### Prepare once
 
 ```bash
-docker network create my-network
+git clone https://github.com/mingchen666/DocTranslator.git
+cd DocTranslator
+cp backend/.env.example backend/.env
 ```
 
-### 3. Backend Deployment
+Set `FLASK_ENV=production` and replace the example `PROD_DATABASE_URL`,
+`SECRET_KEY`, and `JWT_SECRET_KEY` values in `backend/.env`.
 
-#### 3.1 Configure Environment Variables
-
-Ensure the `DocTranslator/backend/.env` file is correctly filled with environment variables.
-
-#### 3.2 Build Backend Image
+### One-command deployment
 
 ```bash
-cd DocTranslator/backend
-docker build -t ezwork-api .
+bash deploy.sh
 ```
 
-#### 3.3 Run Backend Container
+The script validates deployment configuration, builds `backend/Dockerfile`,
+runs database migrations, and starts the API, Nginx, and the configured queue
+workers. The default `TRANSLATION_QUEUE_BACKEND=database` starts the database
+worker; `celery` starts Redis plus separate document and PDF workers.
+
+### One-command update
 
 ```bash
-cd ..
-docker run -d \
-  --name backend-container \
-  --network my-network \
-  -p 5000:5000 \
-  -v $(pwd)/backend/db:/app/db \
-  ezwork-api
+bash update.sh
 ```
 
-### 4. Start Nginx
+The update script requires a clean working tree, accepts only a fast-forward
+update from `main`, then invokes the same deployment flow to rebuild the
+backend image. The committed `frontend/dist` and `admin/dist` directories are
+served directly, so the host does not need Node.js or a frontend build.
 
-```bash
-docker run -d \
-  --name nginx-container \
-  -p 1475:80 \
-  -p 8081:8081 \
-  -v $(pwd)/nginx/nginx.conf:/etc/nginx/conf.d/default.conf \
-  -v $(pwd)/frontend/dist:/usr/share/nginx/html/frontend \
-  -v $(pwd)/admin/dist:/usr/share/nginx/html/admin \
-  --network my-network \
-  nginx:stable-alpine
+<details>
+<summary>Windows, object storage, and other advanced options</summary>
+
+<br>
+
+### Windows deployment
+
+`deploy.sh` and `update.sh` target Bash on Linux/macOS. Windows users can use
+PowerShell with Docker Desktop in Linux containers mode from the project root:
+
+```powershell
+# First deployment or the default database queue mode
+docker compose up -d --build --force-recreate
+
+# Update. The deployment proceeds only when the pull succeeds.
+git pull --ff-only; if ($LASTEXITCODE -eq 0) { docker compose up -d --build --force-recreate } else { exit $LASTEXITCODE }
 ```
 
-### 5. Access Services
+This also builds the backend image and mounts the committed `frontend/dist`
+and `admin/dist` directories. For Celery, use
+`docker compose --profile celery up -d --build --force-recreate`.
 
-- **Frontend**: http://localhost:1475  
-- **Admin Panel**: http://localhost:8081  
-- **Backend API**: http://localhost:5000  
-   - *Account*: admin ;*Password*: 123456
+### Translation result object storage
+
+Results remain under `/app/storage` by default. To store newly completed
+results in Alibaba Cloud OSS, configure `backend/.env`:
+
+```env
+RESULT_STORAGE_BACKEND=oss
+OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com
+OSS_BUCKET=your-private-bucket
+OSS_ACCESS_KEY_ID=your-access-key-id
+OSS_ACCESS_KEY_SECRET=your-access-key-secret
+OSS_PREFIX=translations/
+```
+
+Use a private bucket and a least-privilege RAM user restricted to read, write,
+and delete under `OSS_PREFIX`. The API and every worker must use the same
+configuration and have network access to the endpoint. Existing local results
+are not migrated, and `/app/storage` remains required for source files,
+temporary files, and historical results. Downloads are streamed by the backend,
+so bucket CORS is not required. Review OSS request and traffic costs and use a
+lifecycle policy that does not expire still-downloadable results.
+
+</details>
+
+## Other projects
+
+- [Reviva](https://github.com/mingchen666/Reviva) - AI learning workspace
+
 ---
 
 ## 💖 Support

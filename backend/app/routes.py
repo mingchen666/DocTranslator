@@ -33,6 +33,12 @@ from app.resources.api.translate import TranslateListResource, TranslateSettingR
     TranslateFinishCountResource,  \
      Doc2xCheckResource, TranslateStartResource, \
     TranslateDownloadAllResource
+from app.resources.api.translate_batch import (
+    TranslateBatchCreateResource,
+    TranslateBatchDetailResource,
+    TranslateBatchDownloadResource,
+    TranslateBatchZipResource,
+)
 from app.resources.api.mcp_key import McpKeyListResource, McpKeyCreateResource, McpKeyDetailResource, McpKeyRegenerateResource
 from app.resources.admin.mcp_key import AdminMcpKeyListResource, AdminMcpKeyCreateResource, AdminMcpKeyDetailResource, AdminMcpKeyRegenerateResource
 from app.resources.admin.prompt import AdminPromptListResource
@@ -68,6 +74,16 @@ def register_routes(api):
     api.add_resource(TranslateFinishCountResource, '/api/translate/finish/count')
     api.add_resource(Doc2xCheckResource, '/api/check/doc2x')
     api.add_resource(TranslateStartResource, '/api/translate')  # 启动翻译
+    api.add_resource(TranslateBatchCreateResource, '/api/translate/batches')
+    api.add_resource(TranslateBatchZipResource, '/api/translate/batches/zip')
+    api.add_resource(
+        TranslateBatchDetailResource,
+        '/api/translate/batches/<string:batch_id>',
+    )
+    api.add_resource(
+        TranslateBatchDownloadResource,
+        '/api/translate/batches/<string:batch_id>/download',
+    )
     # doc2x接口
     api.add_resource(Doc2XTranslateStartResource, '/api/doc2x/start')
     api.add_resource(Doc2XTranslateStatusResource, '/api/doc2x/status')
@@ -150,4 +166,4 @@ def register_routes(api):
     api.add_resource(AdminMcpKeyCreateResource, '/api/admin/mcp/key')
     api.add_resource(AdminMcpKeyDetailResource, '/api/admin/mcp/key/<string:id>')
     api.add_resource(AdminMcpKeyRegenerateResource, '/api/admin/mcp/key/<string:id>/regenerate')
-    print("✅ 路由配置完成")  # 添加调试输出
+    print("Routes configured")

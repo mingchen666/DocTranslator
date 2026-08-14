@@ -1,8 +1,10 @@
 # translate/to_translate.py
 import logging
+import os
 import re
 import time
 import openai
+from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import  Lock
 from . import common
@@ -11,6 +13,7 @@ from . import db
 # 重试配置
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # 秒
+PROTECTED_TOKEN_RE = re.compile(r'⟦[A-Z_]+_\d+⟧')
 
 # 进度更新锁
 _progress_lock = Lock()
@@ -60,25 +63,36 @@ def update_progress(texts, translate_id, force_update=False):
                 logging.error(f"更新进度失败: {e}")
 
 
-def complete(trans, text_count, spend_time):
+def complete(trans, text_count, spend_time, target_path=None):
     """标记任务完成"""
     try:
         translate_id = trans['id']
-        target_filesize = 1
+        target_path = target_path or trans.get('target_file')
+        if not target_path or not os.path.isfile(target_path):
+            error(translate_id, "翻译未生成目标文件")
+            return False
 
-        db.execute(
+        target_filesize = os.path.getsize(target_path)
+
+        updated = db.execute(
             "UPDATE translate SET status='done', end_at=NOW(), process=100, "
             "target_filesize=%s, word_count=%s WHERE id=%s",
             target_filesize, text_count, translate_id
         )
+        if not updated:
+            logging.error(f"[任务{translate_id}] 完成状态写入失败")
+            return False
 
         # 清理进度缓存
         _last_reported_progress.pop(translate_id, None)
 
         logging.info(f"[任务{translate_id}] 翻译完成")
+        return updated
 
     except Exception as e:
         logging.error(f"更新完成状态失败: {e}")
+        error(trans['id'], f"更新完成状态失败: {e}")
+        return False
 
 
 def error(translate_id, message):
@@ -132,12 +146,13 @@ def translate_batch(trans, texts, event):
         f"[任务{translate_id}] 开始翻译 {len(to_translate_indices)} 个文本块，线程数: {max_threads}")
 
     has_fatal_error = False
+    failed_blocks = 0
     completed_count = 0
     total_count = len(to_translate_indices)
 
     def translate_single(index):
         """翻译单个文本块"""
-        nonlocal has_fatal_error, completed_count
+        nonlocal has_fatal_error, failed_blocks, completed_count
 
         if event.is_set() or has_fatal_error:
             return False
@@ -148,6 +163,7 @@ def translate_batch(trans, texts, event):
             result = _translate_text_block(trans, text_item)
             text_item['text'] = result['translated_text']
             text_item['count'] = result['count']
+            text_item['fallback_used'] = result.get('fallback_used', False)
             text_item['complete'] = True
 
             # 更新进度
@@ -171,6 +187,7 @@ def translate_batch(trans, texts, event):
             text_item['count'] = count_text(text_item.get('text', ''))
 
             with _progress_lock:
+                failed_blocks += 1
                 completed_count += 1
 
             return True  # 保留原文，继续处理其他块
@@ -194,8 +211,17 @@ def translate_batch(trans, texts, event):
                 future.result()
             except Exception as e:
                 logging.error(f"[任务{translate_id}] 线程执行异常: {e}")
+                failed_blocks += 1
 
-    return not has_fatal_error
+    if has_fatal_error:
+        return False
+    if failed_blocks:
+        error(
+            translate_id,
+            f"{failed_blocks}个文本块翻译失败，原文未被替换",
+        )
+        return False
+    return True
 
 
 def get(trans, event, texts, index):
@@ -219,6 +245,7 @@ def get(trans, event, texts, index):
         # 更新结果
         text_item['text'] = result['translated_text']
         text_item['count'] = result['count']
+        text_item['fallback_used'] = result.get('fallback_used', False)
         text_item['complete'] = True
 
     except FatalError as e:
@@ -250,34 +277,66 @@ def _translate_text_block(trans, text_item):
     if not original_text or not original_text.strip():
         return {'translated_text': original_text, 'count': 0}
 
+    result = _try_configured_models(trans, text_item)
+    if result:
+        return result
+
+    if (
+        text_item.get('fallback_text')
+        and text_item.get('_last_validation_error') == 'style_tokens'
+    ):
+        logging.warning(
+            f"[任务{trans['id']}] 结构化文档样式边界连续校验失败，降级为主样式翻译"
+        )
+        fallback_item = _build_fallback_item(text_item)
+        result = _try_configured_models(trans, fallback_item)
+        if result:
+            result['fallback_used'] = True
+            return result
+
     server = trans.get('server', 'openai')
-
-    # 百度翻译没有备用模型的概念
     if server == 'baidu':
-        result = _try_translate_with_retries(trans, text_item, 'baidu')
-        if result:
-            return result
         raise FatalError("百度翻译失败")
-    else:
-        # OpenAI等API有备用模型
-        model = trans.get('model')
-        backup_model = trans.get('backup_model')
+    model = trans.get('model')
+    backup_model = trans.get('backup_model')
+    raise FatalError(f"主模型和备用模型均失败，最后使用模型: {backup_model or model}")
 
-        # 尝试主模型
-        result = _try_translate_with_retries(trans, text_item, model)
-        if result:
-            return result
 
-        # 主模型失败，尝试备用模型
-        if backup_model and backup_model.strip():
-            logging.info(f"[任务{trans['id']}] 主模型{model}失败，切换到备用模型{backup_model}")
-            time.sleep(RETRY_DELAY)
-            result = _try_translate_with_retries(trans, text_item, backup_model)
-            if result:
-                return result
+def _try_configured_models(trans, text_item):
+    server = trans.get('server', 'openai')
+    if server == 'baidu':
+        return _try_translate_with_retries(trans, text_item, 'baidu')
 
-        # 全部失败
-        raise FatalError(f"主模型和备用模型均失败，最后使用模型: {backup_model or model}")
+    model = trans.get('model')
+    result = _try_translate_with_retries(trans, text_item, model)
+    if result:
+        return result
+
+    backup_model = trans.get('backup_model')
+    if backup_model and backup_model.strip():
+        logging.info(
+            f"[任务{trans['id']}] 主模型{model}失败，切换到备用模型{backup_model}"
+        )
+        time.sleep(RETRY_DELAY)
+        return _try_translate_with_retries(trans, text_item, backup_model)
+    return None
+
+
+def _build_fallback_item(text_item):
+    fallback_item = dict(text_item)
+    fallback_item['text'] = text_item['fallback_text']
+    fallback_item['protected_tokens'] = text_item.get(
+        'fallback_protected_tokens', []
+    )
+    fallback_item['protected_token_sequence'] = text_item.get(
+        'fallback_token_sequence', []
+    )
+    fallback_item.pop('style_tokens', None)
+    fallback_item.pop('fallback_text', None)
+    fallback_item.pop('fallback_protected_tokens', None)
+    fallback_item.pop('fallback_token_sequence', None)
+    fallback_item.pop('require_wrapped_content', None)
+    return fallback_item
 
 
 def _try_translate_with_retries(trans, text_item, model):
@@ -290,6 +349,7 @@ def _try_translate_with_retries(trans, text_item, model):
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
+            text_item['_last_validation_error'] = None
 
             # 执行翻译
             server = trans.get('server', 'openai')
@@ -302,17 +362,32 @@ def _try_translate_with_retries(trans, text_item, model):
 
             # 验证翻译结果
             if not _is_valid_translation(translated):
+                text_item['_last_validation_error'] = 'content'
                 logging.warning(
                     f"类型: {trans.get('server', '')}——[任务{translate_id}] 翻译结果无效: {translated[:50] if translated else 'None'}...")
+                time.sleep(RETRY_DELAY)
+                continue
+
+            token_error = _protected_token_error(text_item, translated)
+            if token_error:
+                text_item['_last_validation_error'] = token_error
+                logging.warning(
+                    f"[任务{translate_id}] 翻译结果破坏了受保护内容占位符: {token_error}"
+                )
                 time.sleep(RETRY_DELAY)
                 continue
 
             # 过滤deepseek思考标签
             translated = re.sub(r'', '', translated, flags=re.DOTALL).strip()
 
-            return {'translated_text': translated, 'count': count_text(original_text)}
+            return {
+                'translated_text': translated,
+                'count': count_text(text_item.get('count_text', original_text)),
+                'fallback_used': False,
+            }
 
         except openai.RateLimitError as e:
+            text_item['_last_validation_error'] = 'request'
             logging.warning(f"[任务{translate_id}] 速率限制，等待后重试: {e}")
             time.sleep(RETRY_DELAY * attempt * 2)  # 递增等待，限速时等待更长
             continue
@@ -321,11 +396,13 @@ def _try_translate_with_retries(trans, text_item, model):
             raise FatalError(f"API密钥无效: {e}")
 
         except openai.APIConnectionError as e:
+            text_item['_last_validation_error'] = 'request'
             logging.warning(f"[任务{translate_id}] 连接错误: {e}")
             time.sleep(RETRY_DELAY)
             continue
 
         except Exception as e:
+            text_item['_last_validation_error'] = 'request'
             logging.warning(f"[任务{translate_id}] 翻译异常: {e}")
             time.sleep(RETRY_DELAY)
             continue
@@ -350,16 +427,27 @@ def _translate_openai(trans, text, model):
     if extension in ('.html', '.htm'):
         final_prompt += "\n请保持HTML标签和属性不变，只翻译标签之间的文本内容。不要添加或删除任何HTML标签。"
 
+    if extension in ('.docx', '.pptx'):
+        marker_prefix = 'DOCX' if extension == '.docx' else 'PPTX'
+        final_prompt += (
+            f"\n文本中的⟦{marker_prefix}_*_数字⟧是不可变结构标记。"
+            "必须原样、原顺序保留全部标记，只翻译标记之间的文本，"
+            "不要在最外层标记前后添加解释。"
+        )
+
     messages = [
         {"role": "system", "content": final_prompt},
         {"role": "user", "content": text}
     ]
-    print(f"[任务{trans['id']}] 模型{model} ，提示词: {final_prompt}")
-    # 禁用日志
+    client = trans.get('_openai_client')
+    if client is None:
+        client = create_openai_client(trans.get('api_url'), trans.get('api_key'))
+        trans['_openai_client'] = client
+
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model=model,
         messages=messages,
         temperature=0.7
@@ -560,6 +648,52 @@ def _is_valid_translation(content):
     return True
 
 
+def _preserves_protected_tokens(text_item, translated):
+    """校验结构化文档要求原样保留的占位符。"""
+    return _protected_token_error(text_item, translated) is None
+
+
+def _protected_token_error(text_item, translated):
+    if 'protected_tokens' not in text_item and 'style_tokens' not in text_item:
+        return None
+
+    translated = translated or ''
+    actual = PROTECTED_TOKEN_RE.findall(translated)
+    protected = list(text_item.get('protected_tokens') or [])
+    style = list(text_item.get('style_tokens') or [])
+    expected_all = protected + style
+
+    actual_protected = [token for token in actual if token in protected]
+    if sorted(actual_protected) != sorted(protected):
+        return 'structure_tokens'
+
+    unknown = [token for token in actual if token not in expected_all]
+    if unknown:
+        return 'structure_tokens'
+
+    actual_style = [token for token in actual if token in style]
+    if sorted(actual_style) != sorted(style):
+        return 'style_tokens'
+    if sorted(actual) != sorted(expected_all):
+        return 'structure_tokens'
+
+    expected_sequence = text_item.get('protected_token_sequence')
+    if expected_sequence and actual != list(expected_sequence):
+        expected_anchors = [
+            token for token in expected_sequence if token in protected
+        ]
+        if actual_protected != expected_anchors:
+            return 'structure_tokens'
+        return 'style_tokens'
+
+    if text_item.get('require_wrapped_content') and actual:
+        first = translated.find(actual[0])
+        last = translated.rfind(actual[-1]) + len(actual[-1])
+        if translated[:first].strip() or translated[last:].strip():
+            return 'style_tokens'
+    return None
+
+
 def count_text(text):
     """统计文本字数"""
     if not text:
@@ -573,9 +707,10 @@ def count_text(text):
     return int(count)
 
 
-def init_openai(url, key):
-    """初始化OpenAI配置"""
-    openai.api_key = key
+def create_openai_client(url, key):
+    """Create a task-local OpenAI client without mutating module globals."""
+    if not url or not key:
+        raise ValueError('OpenAI API URL and API key are required')
     if not url.endswith("/v1/"):
         if url.endswith("/v1"):
             url = url + "/"
@@ -583,7 +718,12 @@ def init_openai(url, key):
             url = url + "v1/"
         else:
             url = url + "/v1/"
-    openai.base_url = url
+    return OpenAI(api_key=key, base_url=url)
+
+
+def init_openai(url, key):
+    """Backward-compatible factory; it no longer changes global OpenAI state."""
+    return create_openai_client(url, key)
 
 
 def check(model):

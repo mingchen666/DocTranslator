@@ -1,14 +1,23 @@
 import os
 import uuid
 import base64
+import binascii
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from app.utils.file_security import (
+    download_public_url,
+    safe_storage_path,
+    stored_filename,
+)
+
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
+ALLOWED_EXTENSIONS = {
+    'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'html', 'htm'
+}
 
 
 def _check_file_extension(filename: str) -> bool:
@@ -23,39 +32,63 @@ def _save_upload_file(content_bytes: bytes, filename: str, app) -> str:
     date_str = datetime.now().strftime('%Y-%m-%d')
     upload_dir = base_dir / "storage" / "uploads" / date_str
     upload_dir.mkdir(parents=True, exist_ok=True)
-    save_path = str(upload_dir / filename)
+    _, disk_name = stored_filename(filename)
+    save_path = safe_storage_path(upload_dir, disk_name)
     with open(save_path, 'wb') as f:
         f.write(content_bytes)
     return os.path.abspath(save_path)
 
 
+def _decode_base64_file(file_content: str, max_bytes: int) -> bytes:
+    if not isinstance(file_content, str):
+        raise ValueError('文件内容必须是Base64字符串')
+
+    max_encoded_length = ((max_bytes + 2) // 3) * 4
+    if len(file_content) > max_encoded_length:
+        raise ValueError('文件超过大小限制')
+
+    try:
+        content_bytes = base64.b64decode(file_content, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError('文件内容不是有效的Base64编码') from exc
+
+    if len(content_bytes) > max_bytes:
+        raise ValueError('文件超过大小限制')
+    return content_bytes
+
+
+def _remove_upload_file(save_path: Optional[str]) -> None:
+    if not save_path:
+        return
+    try:
+        Path(save_path).unlink(missing_ok=True)
+    except OSError:
+        logger.warning('清理MCP上传文件失败: %s', save_path, exc_info=True)
+
+
 def _resolve_file_input(file_content: Optional[str], file_url: Optional[str],
                          file_name: str, app) -> tuple:
+    max_file_size = int(app.config['MAX_FILE_SIZE'])
     if file_content:
-        content_bytes = base64.b64decode(file_content)
+        content_bytes = _decode_base64_file(file_content, max_file_size)
         if not file_name:
             file_name = f"mcp_upload_{uuid.uuid4().hex[:8]}.docx"
         save_path = _save_upload_file(content_bytes, file_name, app)
         return save_path, file_name, len(content_bytes)
 
     elif file_url:
-        import requests
-        resp = requests.get(file_url, timeout=120, stream=True)
-        resp.raise_for_status()
-        content_bytes = resp.content
+        content_bytes, url_name = download_public_url(
+            file_url,
+            max_file_size,
+        )
         if not file_name:
-            from urllib.parse import urlparse, unquote
-            file_name = unquote(urlparse(file_url).path.split('/')[-1])
+            file_name = url_name
             if not file_name or '.' not in file_name:
                 file_name = f"mcp_download_{uuid.uuid4().hex[:8]}.docx"
         save_path = _save_upload_file(content_bytes, file_name, app)
         return save_path, file_name, len(content_bytes)
 
-    else:
-        if not file_name or not os.path.exists(file_name):
-            raise ValueError(f"文件不存在: {file_name}")
-        file_size = os.path.getsize(file_name)
-        return file_name, os.path.basename(file_name), file_size
+    raise ValueError('请提供 file_content 或 file_url')
 
 
 def translate_file(config: dict, customer_id: int, app,
@@ -95,17 +128,26 @@ def translate_file(config: dict, customer_id: int, app,
     if not effective_prompt:
         effective_prompt = '你是一个文档翻译助手，请将以下文本、单词或短语直接翻译成{target_lang}，不返回原文本。如果文本中包含{target_lang}文本、特殊名词（比如邮箱、品牌名、单位名词如mm、px、℃等）、无法翻译等特殊情况，请直接返回原文而无需解释原因。遇到无法翻译的文本直接返回原内容。保留多余空格。'
 
+    save_path = None
+    record_persisted = False
     try:
-        save_path, resolved_name, file_size = _resolve_file_input(
-            file_content, file_url, file_name, app
-        )
-    except Exception as e:
-        return {'error': f'文件处理失败: {str(e)}'}
+        try:
+            save_path, resolved_name, file_size = _resolve_file_input(
+                file_content, file_url, file_name, app
+            )
+        except Exception as e:
+            return {'error': f'文件处理失败: {str(e)}'}
 
-    if not _check_file_extension(resolved_name):
-        return {'error': f'不支持的文件格式，仅支持: {", ".join(sorted(ALLOWED_EXTENSIONS))}'}
+        if not _check_file_extension(resolved_name):
+            return {'error': f'不支持的文件格式，仅支持: {", ".join(sorted(ALLOWED_EXTENSIONS))}'}
+        if (
+            Path(resolved_name).suffix.lower() == '.pdf'
+            and str(mcp_config.get('server', 'openai')).lower() == 'baidu'
+        ):
+            return {'error': '百度翻译暂不支持PDF文件'}
+        if file_size > int(app.config['MAX_FILE_SIZE']):
+            return {'error': '文件超过大小限制'}
 
-    try:
         customer = Customer.query.get(customer_id)
         if not customer:
             return {'error': '用户不存在'}
@@ -120,7 +162,7 @@ def translate_file(config: dict, customer_id: int, app,
         date_str = datetime.now().strftime('%Y-%m-%d')
         target_dir = base_dir / "storage" / "translate" / date_str
         target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = str(target_dir / resolved_name)
+        target_path = str(safe_storage_path(target_dir, Path(save_path).name))
 
         translate_record = Translate(
             translate_no=f"TRANS{datetime.now().strftime('%Y%m%d%H%M%S')}",
@@ -152,22 +194,31 @@ def translate_file(config: dict, customer_id: int, app,
         customer.storage += file_size
         db.session.add(translate_record)
         db.session.commit()
+        record_persisted = True
 
-        TranslateEngine(translate_record.id).execute()
+        if not TranslateEngine(translate_record.id).execute():
+            return {
+                'task_id': translate_record.id,
+                'status': 'failed',
+                'error': '翻译任务入队失败',
+            }
 
         return {
             'task_id': translate_record.id,
             'uuid': file_uuid,
             'file_name': resolved_name,
             'target_lang': lang,
-            'status': 'process',
-            'message': '翻译任务已启动'
+            'status': 'none',
+            'message': '翻译任务已加入队列'
         }
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"MCP翻译任务启动失败: {e}", exc_info=True)
         return {'error': f'翻译任务启动失败: {str(e)}'}
+    finally:
+        if not record_persisted:
+            _remove_upload_file(save_path)
 
 
 def query_translate_status(customer_id: int, task_id: int = None,
@@ -244,6 +295,7 @@ def list_translates(customer_id: int, page: int = 1, limit: int = 20,
 
 def download_translate(customer_id: int, task_id: int) -> dict:
     from app.models.translate import Translate
+    from app.result_storage import read_result_bytes, result_exists
 
     record = Translate.query.filter_by(
         id=task_id, customer_id=customer_id, deleted_flag='N'
@@ -252,18 +304,27 @@ def download_translate(customer_id: int, task_id: int) -> dict:
         return {'error': '翻译记录不存在'}
     if record.status != 'done':
         return {'error': f'翻译尚未完成，当前状态: {record.status}'}
-    if not record.target_filepath or not os.path.exists(record.target_filepath):
+    try:
+        exists = result_exists(record)
+        content = read_result_bytes(record) if exists else None
+    except Exception as exc:
+        logger.error(
+            'MCP读取翻译结果失败，任务ID=%s，错误类型=%s',
+            record.id,
+            type(exc).__name__,
+        )
+        return {'error': '翻译文件读取失败'}
+    if not exists:
         return {'error': '翻译文件不存在'}
 
     import base64 as b64
-    with open(record.target_filepath, 'rb') as f:
-        file_b64 = b64.b64encode(f.read()).decode()
+    file_b64 = b64.b64encode(content).decode()
 
     return {
         'task_id': record.id,
         'file_name': record.origin_filename,
         'file_content_base64': file_b64,
-        'file_size': os.path.getsize(record.target_filepath),
+        'file_size': record.target_filesize or len(content),
     }
 
 
@@ -271,17 +332,27 @@ def delete_translate(customer_id: int, task_id: int) -> dict:
     from app.extensions import db
     from app.models.translate import Translate
     from app.models.customer import Customer
+    from app.result_storage import delete_result
 
     record = Translate.query.filter_by(
-        id=task_id, customer_id=customer_id
+        id=task_id, customer_id=customer_id, deleted_flag='N'
     ).first()
     if not record:
         return {'error': '翻译记录不存在'}
 
+    try:
+        delete_result(record)
+    except Exception as exc:
+        logger.error(
+            'MCP删除翻译结果失败，任务ID=%s，错误类型=%s',
+            record.id,
+            type(exc).__name__,
+        )
+        return {'error': '结果文件删除失败'}
     record.deleted_flag = 'Y'
     customer = Customer.query.get(customer_id)
     if customer:
-        customer.storage = max(0, customer.storage - record.size)
+        customer.storage = max(0, customer.storage - (record.size or 0))
     db.session.commit()
     return {'message': '删除成功'}
 
@@ -303,12 +374,13 @@ def restart_translate(customer_id: int, task_id: int) -> dict:
     record.failed_reason = None
     db.session.commit()
 
-    TranslateEngine(record.id).execute()
+    if not TranslateEngine(record.id).execute():
+        return {'task_id': record.id, 'status': 'failed', 'error': '翻译任务入队失败'}
 
     return {
         'task_id': record.id,
-        'status': 'process',
-        'message': '翻译任务已重新启动',
+        'status': 'none',
+        'message': '翻译任务已重新加入队列',
     }
 
 
@@ -523,12 +595,13 @@ def admin_restart_translate(task_id: int) -> dict:
     record.failed_reason = None
     db.session.commit()
 
-    TranslateEngine(record.id).execute()
+    if not TranslateEngine(record.id).execute():
+        return {'task_id': record.id, 'status': 'failed', 'error': '翻译任务入队失败'}
 
     return {
         'task_id': record.id,
-        'status': 'process',
-        'message': '翻译任务已重新启动',
+        'status': 'none',
+        'message': '翻译任务已重新加入队列',
     }
 
 
@@ -536,16 +609,26 @@ def admin_delete_translate(task_id: int) -> dict:
     from app.extensions import db
     from app.models.translate import Translate
     from app.models.customer import Customer
+    from app.result_storage import delete_result
 
-    record = Translate.query.filter_by(id=task_id).first()
+    record = Translate.query.filter_by(id=task_id, deleted_flag='N').first()
     if not record:
         return {'error': '翻译记录不存在'}
 
+    try:
+        delete_result(record)
+    except Exception as exc:
+        logger.error(
+            '管理员MCP删除翻译结果失败，任务ID=%s，错误类型=%s',
+            record.id,
+            type(exc).__name__,
+        )
+        return {'error': '结果文件删除失败'}
     record.deleted_flag = 'Y'
     if record.customer_id:
         customer = Customer.query.get(record.customer_id)
         if customer:
-            customer.storage = max(0, customer.storage - record.size)
+            customer.storage = max(0, customer.storage - (record.size or 0))
     db.session.commit()
     return {'message': '删除成功'}
 

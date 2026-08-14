@@ -5,6 +5,12 @@ from app import db
 class Translate(db.Model):
     """ 文件翻译任务表 """
     __tablename__ = 'translate'
+    __table_args__ = (
+        db.CheckConstraint(
+            "target_storage_backend IN ('local', 'oss')",
+            name='ck_translate_target_storage_backend',
+        ),
+    )
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     translate_no = db.Column(db.String(32))
     uuid = db.Column(db.String(64))
@@ -21,6 +27,10 @@ class Translate(db.Model):
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
     origin_filesize = db.Column(db.BigInteger, default=0)
     target_filesize = db.Column(db.BigInteger, default=0)
+    target_storage_backend = db.Column(
+        db.String(16), nullable=False, default='local', server_default='local'
+    )
+    target_storage_key = db.Column(db.String(1024), nullable=True)
     lang = db.Column(db.String(32), default='')
     model = db.Column(db.String(64), default='')
     prompt = db.Column(db.String(1024), default='')
@@ -43,6 +53,8 @@ class Translate(db.Model):
     server = db.Column(db.String(32), default='openai')
     app_id = db.Column(db.String(64), default='')
     app_key = db.Column(db.String(64), default='')
+    batch_id = db.Column(db.String(36), index=True)
+    batch_relative_path = db.Column(db.String(520))
 
     def to_dict(self):
         return {

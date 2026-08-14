@@ -5,15 +5,119 @@ from flask import request, send_file, current_app, make_response
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
-from io import BytesIO
+import tempfile
 import zipfile
 import os
 from app import db, Setting
 from app.models import Customer
 from app.models.translate import Translate
-from app.resources.task.translate_service import TranslateEngine
 from app.utils.response import APIResponse
+from app.utils.file_security import safe_storage_path
 from app.utils.check_utils import AIChecker
+from app.result_storage import (
+    delete_result,
+    result_exists,
+    send_result_file,
+    write_result_to_zip,
+)
+
+
+class TranslateStartValidationError(ValueError):
+    """Client-supplied translation start data is invalid."""
+
+
+def _required_form_text(data, field):
+    value = data.get(field)
+    if value is None or not str(value).strip():
+        raise TranslateStartValidationError(f"{field}不能为空")
+    return str(value).strip()
+
+
+def _optional_non_negative_int(data, field, default=None):
+    value = data.get(field)
+    if value is None or str(value).strip() == '':
+        return default
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise TranslateStartValidationError(f"{field}必须是整数") from exc
+    if parsed < 0:
+        raise TranslateStartValidationError(f"{field}不能为负数")
+    return parsed
+
+
+def _required_int_range(data, field, minimum, maximum):
+    value = _required_form_text(data, field)
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise TranslateStartValidationError(f"{field}必须是整数") from exc
+    if not minimum <= parsed <= maximum:
+        raise TranslateStartValidationError(f"{field}必须在{minimum}到{maximum}之间")
+    return parsed
+
+
+def _parse_form_bool(data, field, default=False):
+    value = data.get(field)
+    if value is None or str(value).strip() == '':
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in {'1', 'true', 'yes', 'y', 'on'}:
+        return True
+    if normalized in {'0', 'false', 'no', 'n', 'off'}:
+        return False
+    raise TranslateStartValidationError(f"{field}必须是布尔值")
+
+
+def _validate_translate_start(data, customer, settings):
+    """Validate and normalize start parameters before mutating a task."""
+    server = _required_form_text(data, 'server').lower()
+    if server not in {'openai', 'baidu'}:
+        raise TranslateStartValidationError("不支持的翻译服务")
+
+    values = {
+        'server': server,
+        'model': _required_form_text(data, 'model'),
+        'uuid': _required_form_text(data, 'uuid'),
+        'prompt': _required_form_text(data, 'prompt'),
+        'file_name': _required_form_text(data, 'file_name'),
+        'threads': _required_int_range(data, 'threads', 1, 10),
+        'prompt_id': _optional_non_negative_int(data, 'prompt_id'),
+        'comparison_id': _optional_non_negative_int(data, 'comparison_id'),
+        'origin_lang': data.get('origin_lang', ''),
+        'type': data.get('type[2]', 'trans_all_only_inherit'),
+        'doc2x_flag': data.get('doc2x_flag', 'N'),
+        'doc2x_secret_key': data.get('doc2x_secret_key', ''),
+        'app_id': data.get('app_id'),
+        'app_key': data.get('app_key'),
+        'backup_model': str(data.get('backup_model') or '').strip(),
+    }
+
+    extension = Path(values['file_name']).suffix.lower()
+    if extension in {'.doc', '.xls', '.ppt'}:
+        raise TranslateStartValidationError(
+            '暂不支持旧版Office文件，请转换为.docx、.xlsx或.pptx'
+        )
+    if server == 'baidu' and extension == '.pdf':
+        raise TranslateStartValidationError('百度翻译暂不支持PDF文件')
+
+    if server == 'openai':
+        values['lang'] = _required_form_text(data, 'lang')
+        if customer.level == 'vip':
+            values['api_url'] = str(settings.get('api_url', '')).strip()
+            values['api_key'] = str(settings.get('api_key', '')).strip()
+        else:
+            values['api_url'] = _required_form_text(data, 'api_url')
+            values['api_key'] = _required_form_text(data, 'api_key')
+        if not values['api_url'] or not values['api_key']:
+            raise TranslateStartValidationError("AI翻译服务配置不完整")
+    else:
+        values['app_id'] = _required_form_text(data, 'app_id')
+        values['app_key'] = _required_form_text(data, 'app_key')
+        values['lang'] = _required_form_text(data, 'to_lang')
+        values['comparison_id'] = 1 if _parse_form_bool(data, 'needIntervene') else None
+
+    return values
 
 # 定义翻译配置
 TRANSLATE_SETTINGS = {
@@ -59,110 +163,89 @@ class TranslateStartResource(Resource):
     def post(self):
         """启动翻译任务"""
         data = request.form
-        required_fields = [
-            'server', 'model', 'lang', 'uuid',
-            'prompt', 'threads', 'file_name'
-        ]
-
-        # 参数校验
-        if not all(field in data for field in required_fields):
-            return APIResponse.error("缺少必要参数", 400)
-
-        # 验证OpenAI配置
-        if data['server'] == 'openai' and not all(k in data for k in ['api_url', 'api_key']):
-            return APIResponse.error("AI翻译需要API地址和密钥", 400)
-
-        # if data['server'] == 'openai':
-        #     return APIResponse.error("Doc2x服务需要密钥", 400)
-        # elif data['server'] == 'baidu':
-        #     return APIResponse.error("Doc2x服务需要密钥", 400)
         try:
-            # 获取用户信息
             user_id = get_jwt_identity()
-            customer = Customer.query.get(user_id)
-            # # 判断用户是否是会员，会员不需要填写api，key
-            # if customer.level != 'vip' and not data['api_key']:
-            #     return APIResponse.error("缺少key !", 400)
+            customer = db.session.get(Customer, user_id)
+            if not customer:
+                return APIResponse.error("用户不存在", 401)
             if customer.status == 'disabled':
                 return APIResponse.error("用户状态异常", 403)
 
-            # 生成绝对路径（跨平台兼容）
-            def get_absolute_storage_path(filename):
-                # 获取项目根目录的父目录（假设storage目录与项目目录同级）
-                base_dir = Path(current_app.root_path).parent.absolute()
-                # 按日期创建子目录（如 storage/translate/2024-01-20）
-                date_str = datetime.now().strftime('%Y-%m-%d')
-                # 创建目标目录（如果不存在）
-                target_dir = base_dir / "storage" / "translate" / date_str
-                target_dir.mkdir(parents=True, exist_ok=True)
-                # 返回绝对路径（保持原文件名）
-                return str(target_dir / filename)
+            api_settings = Setting.query.filter(
+                Setting.group == 'api_setting',
+                Setting.deleted_flag == 'N'
+            ).all()
+            translate_settings = {
+                setting.alias: setting.value for setting in api_settings
+            }
+            start_values = _validate_translate_start(
+                data, customer, translate_settings
+            )
 
-            origin_filename = data['file_name']
-
-            # 生成翻译结果绝对路径
-            target_abs_path = get_absolute_storage_path(origin_filename)
-
-            # 获取翻译类型（取最后一个type值）
-            translate_type = data.get('type[2]', 'trans_all_only_inherit')
-
-            # 查询或创建翻译记录
-            translate = Translate.query.filter_by(uuid=data['uuid']).first()
+            # The upload record is the source of truth for ownership and paths.
+            translate = Translate.query.filter_by(
+                uuid=start_values['uuid'],
+                customer_id=user_id,
+                deleted_flag='N',
+            ).first()
             if not translate:
                 return APIResponse.error("未找到对应的翻译记录", 404)
 
-            # 从系统里面获取api_setting 分组的配置
-            api_settings = Setting.query.filter(
-                Setting.group == 'api_setting',  # 只查询 api_setting 分组
-                Setting.deleted_flag == 'N'
-            ).all()
-            # 转换成字典
-            translate_settings = {}
-            for setting in api_settings:
-                translate_settings[setting.alias] = setting.value
+            target_dir = (
+                Path(current_app.root_path).parent
+                / 'storage'
+                / 'translate'
+                / datetime.now().strftime('%Y-%m-%d')
+            )
+            target_dir.mkdir(parents=True, exist_ok=True)
+            disk_name = Path(translate.origin_filepath).name
+            target_abs_path = str(safe_storage_path(target_dir, disk_name))
+
             # 更新翻译记录
-            translate.server = data.get('server', 'openai')
-            translate.origin_filename = data['file_name']
+            translate.server = start_values['server']
             translate.target_filepath = target_abs_path
-            translate.model = data['model']
-            translate.app_key = data.get('app_key', None)
-            translate.app_id = data.get('app_id', None)
-            translate.backup_model = data['backup_model']
-            translate.type = translate_type
-            translate.prompt = data['prompt']
-            translate.threads = int(data['threads'])
-            # 会员用户则使用系统的api_url和api_key
-            if customer.level == 'vip':
-                translate.api_url = translate_settings.get('api_url', '').strip()
-                translate.api_key = translate_settings.get('api_key', '').strip()
-            else:
-                translate.api_url = data.get('api_url', '')
-                translate.api_key = data.get('api_key', '')
-            translate.backup_model = data.get('backup_model', '')
-            translate.origin_lang = data.get('origin_lang', '')
-            translate.size = data.get('size', 0)  # 更新文件大小
-            # 获取 comparison_id 并转换为整数
-            comparison_id = data.get('comparison_id', 0)  # 默认值为 '0'
-            translate.comparison_id = int(comparison_id) if comparison_id else None
-            prompt_id = data.get('prompt_id', '0')
-            translate.prompt_id = int(prompt_id) if prompt_id else None
-            translate.doc2x_flag = data.get('doc2x_flag', 'N')
-            translate.doc2x_secret_key = data.get('doc2x_secret_key', '')
-            if data['server'] == 'baidu':
-                translate.lang = data['to_lang']
-                translate.comparison_id = 1 if data.get('needIntervene', False) else None  # 使用术语库
-            else:
-                translate.lang = data['lang']
-            # 使用 UTC 时间并格式化
-            # current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-            # translate.created_at = current_time
-            # 保存到数据库
-            # 更新用户已用存储空间
-            customer.storage += int(translate.size)
-            db.session.commit()
-            # with current_app.app_context():  # 确保在应用上下文中运行
-            # 启动翻译引擎，传入 current_app
-            TranslateEngine(translate.id).execute()
+            translate.model = start_values['model']
+            translate.app_key = start_values['app_key']
+            translate.app_id = start_values['app_id']
+            translate.backup_model = start_values['backup_model']
+            translate.type = start_values['type']
+            translate.prompt = start_values['prompt']
+            translate.threads = start_values['threads']
+            translate.api_url = start_values.get('api_url', '')
+            translate.api_key = start_values.get('api_key', '')
+            translate.origin_lang = start_values['origin_lang']
+            translate.comparison_id = start_values['comparison_id']
+            translate.prompt_id = start_values['prompt_id']
+            translate.doc2x_flag = start_values['doc2x_flag']
+            translate.doc2x_secret_key = start_values['doc2x_secret_key']
+            translate.lang = start_values['lang']
+            translate.status = 'none'
+            translate.process = 0
+            translate.start_at = None
+            translate.end_at = None
+            translate.failed_reason = None
+            # Store the task configuration and queue record atomically. This
+            # prevents a process interruption from leaving a configured task
+            # with no durable queue entry.
+            try:
+                from app.task_queue import enqueue_translation, queue_backend_name
+                if queue_backend_name() == 'celery':
+                    db.session.commit()
+                    enqueue_translation(translate.id, commit=False)
+                else:
+                    enqueue_translation(translate.id, commit=False)
+                    db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                failed_task = db.session.get(Translate, translate.id)
+                if failed_task:
+                    failed_task.status = 'failed'
+                    failed_task.process = 0
+                    failed_task.end_at = datetime.now()
+                    failed_task.failed_reason = f'任务入队失败: {exc}'[:500]
+                    db.session.commit()
+                current_app.logger.error('翻译任务入队失败', exc_info=True)
+                return APIResponse.error("任务启动失败", 500)
 
             return APIResponse.success({
                 "task_id": translate.id,
@@ -170,6 +253,9 @@ class TranslateStartResource(Resource):
                 "target_path": target_abs_path
             })
 
+        except TranslateStartValidationError as e:
+            db.session.rollback()
+            return APIResponse.error(str(e), 400)
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"翻译任务启动失败: {str(e)}", exc_info=True)
@@ -367,38 +453,64 @@ class TranslateDeleteResource(Resource):
         customer_id = get_jwt_identity()
         translate = Translate.query.filter_by(
             id=id,
-            customer_id=customer_id
+            customer_id=customer_id,
+            deleted_flag='N',
         ).first_or_404()
         customer = Customer.query.get(customer_id)
+        try:
+            delete_result(translate)
+        except Exception as exc:
+            current_app.logger.error(
+                '删除翻译结果失败，任务ID=%s，错误类型=%s',
+                translate.id,
+                type(exc).__name__,
+            )
+            return APIResponse.error('结果文件删除失败', 502)
         # 更新 deleted_flag 为 'Y'
         translate.deleted_flag = 'Y'
         # 更新用户存储空间
-        customer.storage -= translate.size
+        customer.storage = max(0, customer.storage - (translate.size or 0))
         db.session.commit()
 
         return APIResponse.success(message='删除成功!')
 
 
 class TranslateDownloadResource(Resource):
-    # @jwt_required()
+    @jwt_required()
     def get(self, id):
         """通过 ID 下载单个翻译结果文件[^5]"""
         # 查询翻译记录
         translate = Translate.query.filter_by(
             id=id,
-            # customer_id=get_jwt_identity()
+            customer_id=get_jwt_identity(),
+            deleted_flag='N',
         ).first_or_404()
 
         # 确保文件存在
-        if not translate.target_filepath or not os.path.exists(translate.target_filepath):
+        try:
+            exists = result_exists(translate)
+        except Exception as exc:
+            current_app.logger.error(
+                '读取翻译结果状态失败，任务ID=%s，错误类型=%s',
+                translate.id,
+                type(exc).__name__,
+            )
+            return APIResponse.error('文件读取失败', 502)
+        if not exists:
             return APIResponse.error('文件不存在', 404)
 
         # 返回文件
-        response = make_response(send_file(
-            translate.target_filepath,
-            as_attachment=True,
-            download_name=os.path.basename(translate.target_filepath)
-        ))
+        try:
+            response = make_response(send_result_file(
+                translate, translate.origin_filename
+            ))
+        except Exception as exc:
+            current_app.logger.error(
+                '读取翻译结果失败，任务ID=%s，错误类型=%s',
+                translate.id,
+                type(exc).__name__,
+            )
+            return APIResponse.error('文件读取失败', 502)
 
         # 禁用缓存
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -418,16 +530,36 @@ class TranslateDownloadAllResource(Resource):
             deleted_flag='N'  # 只下载未删除的记录
         ).all()
 
-        # 生成内存 ZIP 文件
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-            for record in records:
-                if record.target_filepath and os.path.exists(record.target_filepath):
-                    # 将文件添加到 ZIP 中
-                    zip_file.write(
-                        record.target_filepath,
-                        os.path.basename(record.target_filepath)
-                    )
+        zip_buffer = tempfile.SpooledTemporaryFile(
+            max_size=16 * 1024 * 1024, mode='w+b'
+        )
+        archive_names = set()
+        try:
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for record in records:
+                    if record.status != 'done':
+                        continue
+                    if not result_exists(record):
+                        raise FileNotFoundError(
+                            f'翻译结果不存在，任务ID={record.id}'
+                        )
+                    archive_name = Path(
+                        record.origin_filename or record.target_filepath
+                    ).name
+                    stem, suffix = os.path.splitext(archive_name)
+                    candidate = archive_name
+                    duplicate_index = 2
+                    while candidate in archive_names:
+                        candidate = f"{stem} ({duplicate_index}){suffix}"
+                        duplicate_index += 1
+                    archive_names.add(candidate)
+                    write_result_to_zip(zip_file, record, candidate)
+        except Exception as exc:
+            zip_buffer.close()
+            current_app.logger.error(
+                '批量读取翻译结果失败，错误类型=%s', type(exc).__name__
+            )
+            return APIResponse.error('批量下载时读取结果文件失败', 502)
 
         # 重置缓冲区指针
         zip_buffer.seek(0)
@@ -496,7 +628,17 @@ class TranslateDeleteAllResource(Resource):
             deleted_flag='N'
         ).all()
 
-        total_size = sum(record.size for record in records_to_delete)
+        total_size = sum((record.size or 0) for record in records_to_delete)
+
+        try:
+            for record in records_to_delete:
+                delete_result(record)
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error(
+                '删除全部翻译结果失败，错误类型=%s', type(exc).__name__
+            )
+            return APIResponse.error('结果文件删除失败', 502)
 
         # 执行批量删除
         Translate.query.filter_by(

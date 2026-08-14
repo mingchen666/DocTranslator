@@ -23,7 +23,9 @@ class Doc2XTranslateStartResource(Resource):
         # 参数校验
         if not all(field in data for field in required_fields):
             return APIResponse.error("缺少必要参数", 400)
-        customer = Customer.query.get(get_jwt_identity())
+        customer = db.session.get(Customer, get_jwt_identity())
+        if not customer:
+            return APIResponse.error("用户不存在", 401)
         if customer.status == 'disabled':
             return APIResponse.error("用户状态异常", 403)
 
@@ -39,8 +41,22 @@ class Doc2XTranslateStartResource(Resource):
         # 2. 验证文件类型
         if not translate.origin_filename.lower().endswith('.pdf'):
             return APIResponse.error("doc2x 仅支持PDF文件", 400)
+
+        source_path = Path(translate.origin_filepath)
+        if not source_path.is_file():
+            return APIResponse.error("源文件不存在", 404)
+        source_size = source_path.stat().st_size
+        previous_size = translate.size or translate.origin_filesize or 0
+        storage_delta = source_size - previous_size
+        if storage_delta > 0 and customer.storage + storage_delta > customer.total_storage:
+            return APIResponse.error("用户存储空间不足", 403)
+
+        secret_key = data['doc2x_secret_key'].strip()
+        if not secret_key:
+            return APIResponse.error("未设置doc2x的Key！", 400)
+
         # 3.更新key和server、doc2x_flag等字段
-        translate.doc2x_secret_key = data['doc2x_secret_key']
+        translate.doc2x_secret_key = secret_key
         translate.lang = '中文'  # data['lang']
         translate.origin_lang = data.get('origin_lang', '')
         translate.target_filepath = ''
@@ -48,13 +64,10 @@ class Doc2XTranslateStartResource(Resource):
         translate.server = data.get('server', 'doc2x')
         translate.start_at = datetime.now()
 
-        if not data['doc2x_secret_key']:
-            return APIResponse.error("未设置doc2x的Key！", 400)
-
         try:
             # 4. 启动doc2x解析
             uid = Doc2XService.start_task(
-                api_key=data['doc2x_secret_key'],
+                api_key=secret_key,
                 file_path=translate.origin_filepath
             )
 
@@ -62,8 +75,9 @@ class Doc2XTranslateStartResource(Resource):
             translate.uuid = uid  # 更新为doc2x返回的UID
             translate.status = "process"
             translate.model = "doc2x"
-            customer.storage += int(data.get('size', 0))
-            translate.size = data.get('size', 0)  # 更新文件大小
+            customer.storage = max(0, customer.storage + storage_delta)
+            translate.origin_filesize = source_size
+            translate.size = source_size
             db.session.commit()
 
             return APIResponse.success({
@@ -76,6 +90,7 @@ class Doc2XTranslateStartResource(Resource):
             db.session.rollback()
             current_app.logger.error(f"doc2x翻译失败: {str(e)}")
             translate.status = "failed"
+            translate.failed_reason = str(e)[:500]
             db.session.commit()
             return APIResponse.error(f"doc2x翻译失败: {str(e)}", 500)
 
@@ -148,11 +163,9 @@ class Doc2XTranslateStatusResource(Resource):
 
                     # 更新记录
                     translate.target_filepath = save_path
-                    translate.status = "done"
-                    translate.process = 100
                     translate.updated_at = datetime.now()
-                    translate.end_at = datetime.now()
-                    db.session.commit()
+                    from app.result_storage import commit_completed_result
+                    commit_completed_result(translate, datetime.now())
 
                 response_data.update({
                     "result_path": translate.target_filepath if translate.status == 'done' else None,
@@ -165,6 +178,9 @@ class Doc2XTranslateStatusResource(Resource):
 
             elif current_status == "failed":
                 translate.status = "failed"
+                translate.failed_reason = str(
+                    status_data.get("detail", "pdf翻译失败")
+                )[:500]
                 db.session.commit()
                 response_data.update({
                     "error": status_data.get("detail", "pdf翻译失败~"),
@@ -174,10 +190,15 @@ class Doc2XTranslateStatusResource(Resource):
             return APIResponse.success(response_data)
 
         except Exception as e:
-            current_app.logger.error(f"状态查询失败: {str(e)}")
+            current_app.logger.error(
+                'Doc2X状态或结果处理失败，任务ID=%s，错误类型=%s',
+                translate.id,
+                type(e).__name__,
+            )
             translate.status = "failed"
+            translate.failed_reason = 'Doc2X结果处理失败，请检查服务和结果存储配置'
             db.session.commit()
-            return APIResponse.error(f"状态查询失败: {str(e)}", 500)
+            return APIResponse.error('状态查询或结果保存失败', 500)
 
     @staticmethod
     def _get_save_dir1():

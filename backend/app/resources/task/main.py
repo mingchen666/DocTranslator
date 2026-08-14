@@ -1,7 +1,29 @@
 import os
+from importlib import import_module
+
 from flask import current_app
 from app.models.translate import Translate
-from app.translate import word, excel, powerpoint, pdf,txt, csv_handle, md, html, to_translate
+from app.translate import to_translate
+
+
+HANDLER_BY_EXTENSION = {
+    '.docx': 'word',
+    '.xlsx': 'excel',
+    '.pptx': 'powerpoint',
+    '.pdf': 'pdf',
+    '.txt': 'txt',
+    '.csv': 'csv_handle',
+    '.md': 'md',
+    '.html': 'html',
+    '.htm': 'html',
+}
+
+
+def get_handler(extension):
+    module_name = HANDLER_BY_EXTENSION.get(extension.lower())
+    if module_name is None:
+        return None
+    return import_module(f'app.translate.{module_name}')
 
 
 def main_wrapper(task_id, config, origin_path):
@@ -20,36 +42,23 @@ def main_wrapper(task_id, config, origin_path):
             current_app.logger.error(f"任务 {task_id} 不存在")
             return False
 
-        # 初始化翻译配置   (提示词-术语库加载)
-        _init_translate_config(task)
-        to_translate.init_openai(config['api_url'], config['api_key'])
         # 获取文件扩展名
         extension = os.path.splitext(origin_path)[1].lower()
-        # 调用文件处理器
-        handler_map = {
-            ('.docx', '.doc'): word,
-            ('.xlsx', '.xls'): excel,
-            ('.pptx', '.ppt'): powerpoint,
-            ('.pdf',): pdf,
-            ('.txt',): txt,
-            ('.csv',): csv_handle,
-            ('.md',): md,
-            ('.html', '.htm'): html
-        }
+        handler = get_handler(extension)
+        if handler is None:
+            current_app.logger.error(f"不支持的文件类型: {extension}")
+            return False
 
-        # 查找匹配的处理器
-        for ext_group, handler in handler_map.items():
-            if extension in ext_group:
-             
-                status = handler.start(
-          
-                    trans=config  # 传递翻译配置
-                )
-                print('config配置项', config)
-                return status
+        if config.get('server', 'openai') == 'baidu' and extension == '.pdf':
+            current_app.logger.error('百度翻译暂不支持PDF文件')
+            return False
 
-        current_app.logger.error(f"不支持的文件类型: {extension}")
-        return False
+        if config.get('server', 'openai') != 'baidu' and extension != '.pdf':
+            config['_openai_client'] = to_translate.create_openai_client(
+                config.get('api_url'), config.get('api_key')
+            )
+
+        return handler.start(trans=config)
 
     except Exception as e:
         current_app.logger.error(f"翻译任务执行异常: {str(e)}", exc_info=True)
@@ -65,36 +74,4 @@ def pdf_handler(config, origin_path):
     #     # 这里均使用gptpdf实现
     #     return gptpdf.start(config)
     #     # return pdf.start(config)
-
-
-def _init_translate_config(trans):
-    """
-    初始化翻译配置
-    :param trans: 翻译任务对象
-    """
-    # 设置OpenAI API
-    if trans.api_url and trans.api_key:
-        set_openai_config(trans.api_url, trans.api_key)
-
-
-def set_openai_config(api_url, api_key):
-    """设置OpenAI API配置"""
-    import openai
-
-    # 确保URL以/v1/结尾
-    base_url = api_url
-    if not base_url.endswith("/v1/"):
-        if base_url.endswith("/v1"):
-            # 如果以 /v1 结尾，添加 /
-            base_url = base_url + "/"
-        elif base_url.endswith("/"):
-            # 如果以 / 结尾，添加 v1/
-            base_url = base_url + "v1/"
-        else:
-            # 如果不以 / 结尾，添加 /v1/
-            base_url = base_url + "/v1/"
-
-    openai.base_url = base_url
-    openai.api_key = api_key
-
 

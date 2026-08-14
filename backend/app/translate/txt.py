@@ -40,8 +40,7 @@ def start(trans: Dict) -> bool:
     if not content or not content.strip():
         logging.info(f"[任务{translate_id}] 文件内容为空")
         _write_file(trans['target_file'], "")
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     # 智能分块
     texts = _smart_chunk(content)
@@ -52,8 +51,7 @@ def start(trans: Dict) -> bool:
     if to_translate_count == 0:
         logging.info(f"[任务{translate_id}] 没有需要翻译的内容")
         _write_file(trans['target_file'], content)
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     logging.info(
         f"[任务{translate_id}] 分割为 {len(texts)} 个块，其中 {to_translate_count} 个需要翻译")
@@ -74,8 +72,7 @@ def start(trans: Dict) -> bool:
 
     end_time = datetime.datetime.now()
     spend_time = common.display_spend(start_time, end_time)
-    to_translate.complete(trans, text_count, spend_time)
-    return True
+    return to_translate.complete(trans, text_count, spend_time)
 
 
 def _read_file(file_path: str) -> Tuple[str, str]:

@@ -1,23 +1,29 @@
 # resources/admin/to_translate.py
 import os
+import tempfile
 import zipfile
 from datetime import datetime
-from io import BytesIO
-from flask import request, make_response, send_file
-from flask_jwt_extended import jwt_required
+from flask import current_app, request, make_response, send_file
 from flask_restful import Resource, reqparse
 from app import db
 from app.models import Customer
 from app.models.translate import Translate
+from app.utils.auth_tools import admin_required
 from app.utils.response import APIResponse
 from app.utils.validators import (
     validate_id_list
+)
+from app.result_storage import (
+    delete_result,
+    result_exists,
+    send_result_file,
+    write_result_to_zip,
 )
 
 
 # 获取翻译记录列表
 class AdminTranslateListResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self):
         """获取翻译记录列表"""
         # 获取查询参数
@@ -94,7 +100,7 @@ class AdminTranslateListResource(Resource):
 
 # 批量下载多个翻译文件
 class AdminTranslateDownloadBatchResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self):
         """批量下载多个翻译结果文件（管理员接口）"""
         try:
@@ -113,16 +119,26 @@ class AdminTranslateDownloadBatchResource(Resource):
                 Translate.deleted_flag == 'N'  # 只下载未删除的记录
             ).all()
 
-            # 生成内存 ZIP 文件
-            zip_buffer = BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+            zip_buffer = tempfile.SpooledTemporaryFile(
+                max_size=16 * 1024 * 1024, mode='w+b'
+            )
+            with zipfile.ZipFile(
+                zip_buffer, 'w', zipfile.ZIP_DEFLATED
+            ) as zip_file:
                 for record in records:
-                    if record.target_filepath and os.path.exists(record.target_filepath):
-                        # 将文件添加到 ZIP 中
-                        zip_file.write(
-                            record.target_filepath,
-                            os.path.basename(record.target_filepath)
+                    if record.status != 'done':
+                        continue
+                    if not result_exists(record):
+                        raise FileNotFoundError(
+                            f'翻译结果不存在，任务ID={record.id}'
                         )
+                    write_result_to_zip(
+                        zip_file,
+                        record,
+                        os.path.basename(
+                            record.origin_filename or record.target_filepath
+                        ),
+                    )
 
             # 重置缓冲区指针
             zip_buffer.seek(0)
@@ -135,12 +151,14 @@ class AdminTranslateDownloadBatchResource(Resource):
                 download_name=f"translations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
             )
         except Exception as e:
-            return {"message": f"服务器错误: {str(e)}"}, 500
+            if 'zip_buffer' in locals():
+                zip_buffer.close()
+            return {"message": "批量下载时读取结果文件失败"}, 502
 
 
 # 下载单个翻译文件
 class AdminTranslateDownloadResource(Resource):
-    # @jwt_required()
+    @admin_required
     def get(self, id):
         """通过 ID 下载单个翻译结果文件[^5]"""
         # 查询翻译记录
@@ -150,15 +168,33 @@ class AdminTranslateDownloadResource(Resource):
         ).first_or_404()
 
         # 确保文件存在
-        if not translate.target_filepath or not os.path.exists(translate.target_filepath):
+        try:
+            exists = result_exists(translate)
+        except Exception as exc:
+            current_app.logger.error(
+                '管理员读取翻译结果状态失败，任务ID=%s，错误类型=%s',
+                translate.id,
+                type(exc).__name__,
+            )
+            return APIResponse.error('文件读取失败', 502)
+        if not exists:
             return APIResponse.error('文件不存在', 404)
 
         # 返回文件
-        response = make_response(send_file(
-            translate.target_filepath,
-            as_attachment=True,
-            download_name=os.path.basename(translate.target_filepath)
-        ))
+        try:
+            response = make_response(send_result_file(
+                translate,
+                os.path.basename(
+                    translate.origin_filename or translate.target_filepath
+                ),
+            ))
+        except Exception as exc:
+            current_app.logger.error(
+                '管理员读取翻译结果失败，任务ID=%s，错误类型=%s',
+                translate.id,
+                type(exc).__name__,
+            )
+            return APIResponse.error('文件读取失败', 502)
 
         # 禁用缓存
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -170,11 +206,18 @@ class AdminTranslateDownloadResource(Resource):
 
 # 删除单个翻译记录
 class AdminTranslateDeteleResource(Resource):
-    @jwt_required()
+    @admin_required
     def delete(self, id):
         """删除单个翻译记录[^2]"""
         try:
             record = Translate.query.get_or_404(id)
+            delete_result(record)
+            if record.customer_id:
+                customer = db.session.get(Customer, record.customer_id)
+                if customer:
+                    customer.storage = max(
+                        0, customer.storage - (record.size or 0)
+                    )
             db.session.delete(record)
             db.session.commit()
             return APIResponse.success(message='记录删除成功')
@@ -184,6 +227,7 @@ class AdminTranslateDeteleResource(Resource):
 
 
 class AdminTranslateBatchDeleteResource(Resource):
+    @admin_required
     def post(self):
         """批量删除翻译记录[^3]"""
         try:
@@ -191,9 +235,26 @@ class AdminTranslateBatchDeleteResource(Resource):
             if len(ids) > 100:
                 return APIResponse.error('单次最多删除100条记录', 400)
 
-            Translate.query.filter(Translate.id.in_(ids)).delete()
+            records = Translate.query.filter(Translate.id.in_(ids)).all()
+            if len(records) != len(set(ids)):
+                return APIResponse.error('部分翻译记录不存在', 404)
+            quota_by_customer = {}
+            for record in records:
+                delete_result(record)
+                if record.customer_id:
+                    quota_by_customer[record.customer_id] = (
+                        quota_by_customer.get(record.customer_id, 0)
+                        + (record.size or 0)
+                    )
+                db.session.delete(record)
+            for customer_id, released_size in quota_by_customer.items():
+                customer = db.session.get(Customer, customer_id)
+                if customer:
+                    customer.storage = max(
+                        0, customer.storage - released_size
+                    )
             db.session.commit()
-            return APIResponse.success(message=f'成功删除{len(ids)}条记录')
+            return APIResponse.success(message=f'成功删除{len(records)}条记录')
         except APIResponse as e:
             return e
         except Exception as e:
@@ -202,6 +263,7 @@ class AdminTranslateBatchDeleteResource(Resource):
 
 
 class AdminTranslateRestartResource(Resource):
+    @admin_required
     def post(self, id):
         """重启翻译任务[^4]"""
         try:
@@ -221,6 +283,7 @@ class AdminTranslateRestartResource(Resource):
 
 
 class AdminTranslateStatisticsResource(Resource):
+    @admin_required
     def get(self):
         """获取翻译统计信息[^5]"""
         try:

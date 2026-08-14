@@ -1,23 +1,28 @@
 # resources/admin/setting.py
 import os
 import shutil
+import json
 from flask import request, current_app
 from flask_restful import Resource
 
 from app import db
 from app.models import Setting
+from app.utils.auth_tools import admin_required
+from app.utils.file_security import safe_storage_path
 from app.utils.response import APIResponse
 from app.utils.validators import validate_id_list
 
 
 class AdminSettingNoticeResource(Resource):
+    @admin_required
     def get(self):
         """获取通知设置"""
         setting = Setting.query.filter_by(alias='notice_setting').first()
         if not setting:
             return APIResponse.success(data={'users': []})
-        return APIResponse.success(data={'users': eval(setting.value)})
+        return APIResponse.success(data={'users': json.loads(setting.value)})
 
+    @admin_required
     def post(self):
         """更新通知设置"""
         data = request.json
@@ -27,7 +32,7 @@ class AdminSettingNoticeResource(Resource):
         if not setting:
             setting = Setting(alias='notice_setting')
 
-        setting.value = str(users)
+        setting.value = json.dumps(users)
         setting.serialized = True
         db.session.add(setting)
         db.session.commit()
@@ -35,6 +40,7 @@ class AdminSettingNoticeResource(Resource):
 
 
 class AdminSettingApiResource(Resource):
+    @admin_required
     def get(self):
         """获取API配置"""
         settings = Setting.query.filter(Setting.group == 'api_setting').all()
@@ -47,6 +53,7 @@ class AdminSettingApiResource(Resource):
         }
         return APIResponse.success(data=data)
 
+    @admin_required
     def post(self):
         """更新API配置"""
         data = request.json
@@ -65,6 +72,7 @@ class AdminSettingApiResource(Resource):
 
 
 class AdminInfoSettingOtherResource(Resource):
+    @admin_required
     def get(self):
         """获取其他设置"""
         settings = Setting.query.filter(Setting.group == 'other_setting').all()
@@ -77,6 +85,7 @@ class AdminInfoSettingOtherResource(Resource):
 
 
 class AdminEditSettingOtherResource(Resource):
+    @admin_required
     def post(self):
         """更新其他设置"""
         data = request.json
@@ -95,6 +104,7 @@ class AdminEditSettingOtherResource(Resource):
 
 
 class AdminSettingSiteResource(Resource):
+    @admin_required
     def get(self):
         """获取站点设置"""
         setting = Setting.query.filter_by(alias='version').first()
@@ -102,6 +112,7 @@ class AdminSettingSiteResource(Resource):
             return APIResponse.success(data={'version': 'community'})
         return APIResponse.success(data={'version': setting.value})
 
+    @admin_required
     def post(self):
         """更新站点版本"""
         version = request.json.get('version')
@@ -120,6 +131,7 @@ class AdminSettingSiteResource(Resource):
 # ----系统存储设置-----
 # 获取系统路径存储文件列表
 class SystemStorageResource(Resource):
+    @admin_required
     def get(self):
         """获取文件列表"""
         try:
@@ -171,6 +183,7 @@ class SystemStorageResource(Resource):
             current_app.logger.error(f"获取文件列表失败: {str(e)}")
             return APIResponse.error("获取文件列表失败")
 
+    @admin_required
     def delete(self):
         """删除（自动清理空目录）"""
         try:
@@ -182,11 +195,10 @@ class SystemStorageResource(Resource):
                 return APIResponse.error("缺少必要参数")
 
             base_dir = os.path.dirname(current_app.root_path)
-            target_path = os.path.join(base_dir, 'storage', *target.split('/'))
-
-            # 安全检查
             storage_path = os.path.join(base_dir, 'storage')
-            if not os.path.abspath(target_path).startswith(os.path.abspath(storage_path)):
+            try:
+                target_path = safe_storage_path(storage_path, *target.split('/'))
+            except ValueError:
                 return APIResponse.error("非法路径")
 
             # 执行删除

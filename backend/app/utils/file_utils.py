@@ -74,8 +74,8 @@ class FileManager:
         :param filename: 文件名
         :return: 文件类型是否允许 (True/False)
         """
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        allowed_extensions = current_app.config['ALLOWED_EXTENSIONS']
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
     @staticmethod
     def validate_file_size(file_stream):
@@ -110,8 +110,8 @@ class FileManager11:
     @staticmethod
     def allowed_file(filename):
         """验证文件类型是否允许[^1]"""
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        allowed_extensions = current_app.config['ALLOWED_EXTENSIONS']
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
     @staticmethod
     def validate_file_size(file_stream):

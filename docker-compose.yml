@@ -3,32 +3,107 @@ version: '3'
 services:
   backend:
     image: eggsunsky/doctranslator:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: backend-container
+    env_file:
+      - ./backend/.env
     ports:
       - "5000:5000"
     volumes:
       - ./backend/db:/app/db
+      - ./backend/storage:/app/storage
     environment:
-      - FLASK_ENV=production
-      - SECRET_KEY=your-secret-key
-      # 开发环境数据库（SQLite）
-      # - DEV_DATABASE_URL=sqlite:////app/db/dev.db
-      # 生产环境数据库 使用mysql
-      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://user:pwd@localhost/xxxx
-      - PROD_DATABASE_URL=mysql+pymysql://user:pwd@localhost/xxxx
-      # JWT 配置
-      - JWT_SECRET_KEY=sxxxxxx
-      - JWT_ACCESS_TOKEN_EXPIRES=172800
-      # 邮箱配置
-      - MAIL_SERVER=smtp.qq.com
-      - MAIL_PORT=587
-      - MAIL_USE_TLS=true
-      - MAIL_USERNAME=xxxx@qq.com
-      - MAIL_PASSWORD=xxxxxx
-      - MAIL_DEFAULT_SENDER=ixxxx@qq.com
-      - ALLOWED_EMAIL_DOMAINS=qq.com,163.com,126.com
-      # 跨域 允许的域名
-      - ALLOWED_DOMAINS=*
+      FLASK_ENV: production
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/translate/test', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - my-network
+
+  worker:
+    image: eggsunsky/doctranslator:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-worker-container
+    env_file:
+      - ./backend/.env
+    command: ["python", "worker.py"]
+    volumes:
+      - ./backend/db:/app/db
+      - ./backend/storage:/app/storage
+    environment:
+      FLASK_ENV: production
+      TRANSLATE_DEFAULT_CONCURRENCY: 2
+      TRANSLATE_PDF_CONCURRENCY: 1
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - my-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: doctranslator-redis
+    profiles: ["celery"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - my-network
+
+  celery-document-worker:
+    image: eggsunsky/doctranslator:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: doctranslator-celery-document
+    profiles: ["celery"]
+    env_file:
+      - ./backend/.env
+    command: ["celery", "-A", "app.celery_app:celery", "worker", "--queues=translation.default", "--concurrency=2", "--hostname=document@%h"]
+    volumes:
+      - ./backend/db:/app/db
+      - ./backend/storage:/app/storage
+    environment:
+      FLASK_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - my-network
+
+  celery-pdf-worker:
+    image: eggsunsky/doctranslator:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: doctranslator-celery-pdf
+    profiles: ["celery"]
+    env_file:
+      - ./backend/.env
+    command: ["celery", "-A", "app.celery_app:celery", "worker", "--queues=translation.pdf", "--concurrency=1", "--hostname=pdf@%h"]
+    volumes:
+      - ./backend/db:/app/db
+      - ./backend/storage:/app/storage
+    environment:
+      FLASK_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     networks:
       - my-network
 
@@ -51,3 +126,6 @@ services:
 networks:
   my-network:
     driver: bridge
+
+volumes:
+  redis-data:

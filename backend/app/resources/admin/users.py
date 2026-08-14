@@ -1,15 +1,14 @@
 # resources/admin/user.py
 from flask import request
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required
 from app import db
 from app.models import User
-from app.utils.auth_tools import hash_password
+from app.utils.auth_tools import admin_required, hash_password
 from app.utils.response import APIResponse
 
 
 class AdminUserListResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self):
         """获取用户列表"""
         parser = reqparse.RequestParser()
@@ -38,7 +37,7 @@ class AdminUserListResource(Resource):
 
 # 创建新用户
 class AdminCreateUserResource(Resource):
-    @jwt_required()
+    @admin_required
     def put(self):
         """创建新用户"""
         data = request.json
@@ -64,7 +63,7 @@ class AdminCreateUserResource(Resource):
 
 # 获取用户详细信息
 class AdminUserDetailResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self, id):
         """获取用户详细信息"""
         user = User.query.get_or_404(id)
@@ -79,7 +78,7 @@ class AdminUserDetailResource(Resource):
 
 # 编辑用户信息
 class AdminUpdateUserResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self, id):
         """编辑用户信息"""
         user = User.query.get_or_404(id)
@@ -99,7 +98,7 @@ class AdminUpdateUserResource(Resource):
 
 # 删除用户
 class AdminDeleteUserResource(Resource):
-    @jwt_required()
+    @admin_required
     def delete(self, id):
         """删除用户"""
         user = User.query.get_or_404(id)

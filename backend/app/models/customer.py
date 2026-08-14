@@ -13,7 +13,7 @@ class Customer(db.Model):
     customer_no = db.Column(db.String(32))  # 用户编号
     phone = db.Column(db.String(11))
     name = db.Column(db.String(255))
-    password = db.Column(db.String(64), nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False)
     level = db.Column(db.Enum('common', 'vip'), default='common')  # 会员等级
     status = db.Column(db.Enum('enabled', 'disabled'), default='enabled')  # 账户状态

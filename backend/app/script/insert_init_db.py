@@ -1,7 +1,10 @@
 from datetime import date
+import os
 from sqlalchemy import text, inspect
 from app import db
 from app.models.prompt import Prompt
+from app.models.user import User
+from app.utils.auth_tools import hash_password
 
 
 # 定义初始化数据
@@ -98,7 +101,7 @@ def insert_initial_data(app):
         # db.session.execute(text("ALTER TABLE prompt_fav MODIFY COLUMN id BIGINT AUTO_INCREMENT;"))
         # 提交事务
         db.session.commit()
-        print("✅ 初始化数据完成！")
+        print("Initial prompts ready")
 
 
 
@@ -118,7 +121,7 @@ def set_auto_increment(app):
         dialect = db.engine.dialect.name
         # 检查 id 字段是否已经是自动递增
         if is_auto_increment("prompt_fav", "id"):
-            print("✅ 'id' 字段已经自动递增（无需修改）")
+            print("prompt_fav.id already uses auto increment")
             return
 
         if dialect == "mysql":
@@ -126,10 +129,10 @@ def set_auto_increment(app):
             try:
                 db.session.execute(text(sql))
                 db.session.commit()
-                print("✅ 'id' 字段已设置为自动递增（MySQL）")
+                print("prompt_fav.id auto increment enabled for MySQL")
             except Exception as e:
                 db.session.rollback()
-                print(f"❌ 设置自动递增失败: {e}")
+                print(f"Failed to enable auto increment: {e}")
         elif dialect == "sqlite":
             # SQLite 通过重建表的方式设置 id 字段为自动递增
             try:
@@ -153,9 +156,9 @@ def set_auto_increment(app):
                     connection.execute(text("DROP TABLE prompt_fav;"))
                     # 4. 重命名新表
                     connection.execute(text("ALTER TABLE prompt_fav_new RENAME TO prompt_fav;"))
-                print("✅ 'id' 字段已设置为自动递增（SQLite）")
+                print("prompt_fav.id auto increment enabled for SQLite")
             except Exception as e:
-                print(f"❌ 设置自动递增失败: {e}")
+                print(f"Failed to enable auto increment: {e}")
         else:
             raise NotImplementedError(f"Unsupported database dialect: {dialect}")
 
@@ -231,12 +234,34 @@ def insert_initial_settings(app):
 
             if inserted_count > 0:
                 db.session.commit()
-                print(f"✅ 成功插入 {inserted_count}/{len(INITIAL_SETTINGS)} 条配置")
+                print(f"Inserted {inserted_count}/{len(INITIAL_SETTINGS)} settings")
             else:
-                print("⏩ 所有系统配置数据已存在，无需插入")
+                print("All initial settings already exist")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ 初始化失败: {str(e)}")
+            print(f"Settings initialization failed: {str(e)}")
             raise
+
+
+def insert_admin_from_env(app):
+    """Optionally create the first administrator without a default password."""
+    email = os.getenv('ADMIN_EMAIL', '').strip()
+    password = os.getenv('ADMIN_PASSWORD', '')
+    if not email and not password:
+        return
+    if not email or not password:
+        raise RuntimeError('ADMIN_EMAIL 和 ADMIN_PASSWORD 必须同时配置')
+
+    with app.app_context():
+        if User.query.filter_by(email=email).first():
+            return
+        db.session.add(User(
+            name='admin',
+            email=email,
+            password=hash_password(password),
+            deleted_flag='N',
+        ))
+        db.session.commit()
+        print('Initial administrator created from environment')
 

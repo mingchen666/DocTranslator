@@ -33,8 +33,7 @@ def start(trans: Dict[str, Any]) -> bool:
     if not content:
         logging.info(f"[任务{translate_id}] CSV文件为空")
         _write_csv_file(trans['target_file'], content, encoding, dialect)
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     # 提取需要翻译的单元格
     texts = []
@@ -85,8 +84,7 @@ def start(trans: Dict[str, Any]) -> bool:
     if not texts:
         logging.info(f"[任务{translate_id}] CSV中没有需要翻译的内容")
         _write_csv_file(trans['target_file'], content, encoding, dialect)
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     logging.info(f"[任务{translate_id}] 提取到 {len(texts)} 个文本块")
 
@@ -107,8 +105,7 @@ def start(trans: Dict[str, Any]) -> bool:
 
     end_time = datetime.datetime.now()
     spend_time = common.display_spend(start_time, end_time)
-    to_translate.complete(trans, text_count, spend_time)
-    return True
+    return to_translate.complete(trans, text_count, spend_time)
 
 
 def _read_csv_file(file_path: str) -> Tuple[List[List[str]], str, Any]:
@@ -175,6 +172,10 @@ def _should_translate(text) -> bool:
 
     text = text.strip()
     if not text:
+        return False
+
+    # CSV没有单元格类型元数据，以等号开头的内容按公式原样保留。
+    if text.startswith('='):
         return False
 
     # 跳过纯标点符号

@@ -10,7 +10,7 @@
           :action="upload_url"
           :accept="accepts"
           auto-upload
-          :limit="5"
+          :limit="20"
           :on-success="uploadSuccess"
           :on-error="uploadError"
           :headers="{ token: userStore.token }"
@@ -36,6 +36,19 @@
             <div class="tips">支持格式{{ accpet_tip }}，建议文件≤50MB</div>
           </div>
         </el-upload>
+        <div class="zip_picker">
+          <span>ZIP 批量翻译</span>
+          <el-upload
+            ref="zipUploadRef"
+            accept=".zip"
+            :auto-upload="false"
+            :limit="1"
+            :on-change="handleZipChange"
+            :on-remove="handleZipRemove"
+          >
+            <el-button plain>选择 ZIP</el-button>
+          </el-upload>
+        </div>
       </div>
       <!-- 翻译列表表格展示 -->
       <div class="list_box">
@@ -94,6 +107,28 @@
               >全部删除</el-button
             >
           </div> -->
+        </div>
+        <div class="batch_list" v-if="batches.length > 0">
+          <div class="batch_row" v-for="batch in batches" :key="batch.id">
+            <div class="batch_name">
+              <span>{{ batch.origin_filename || '批量翻译' }}</span>
+              <small>{{ batch.done }}/{{ batch.total }} 个文件</small>
+            </div>
+            <el-progress
+              :percentage="batchPercentage(batch)"
+              :status="batch.status === 'failed' ? 'exception' : batch.status === 'done' ? 'success' : ''"
+            />
+            <span class="batch_status">{{ batchStatusName(batch.status) }}</span>
+            <el-button
+              v-if="isBatchFinished(batch) && batch.done > 0"
+              type="primary"
+              plain
+              @click="downloadBatch(batch)"
+            >
+              <DownloadIcon />
+              下载 ZIP
+            </el-button>
+          </div>
         </div>
         <!-- 翻译列表表格数据 -->
         <div class="table_box" v-loading="isLoadingData" element-loading-text="加载中...">
@@ -238,7 +273,11 @@ import {
   downAllTranslate,
   doc2xStartService,
   doc2xQueryStatusService,
-  getFinishCount
+  getFinishCount,
+  createTranslateBatch,
+  uploadTranslateBatchZip,
+  getTranslateBatches,
+  getTranslateBatch
 } from '@/api/trans'
 import { storage } from '@/api/account'
 import uploadPng from '@assets/upload.png'
@@ -254,12 +293,17 @@ const currentServiceType = computed(() => translateStore.currentService)
 // 翻译数据表格加载状态
 const isLoadingData = ref(true)
 const upload_load = ref(false)
+const activeUploads = ref(0)
 const no_data = ref(true)
 
 const accepts = '.docx,.xlsx,.pptx,.pdf,.txt,.csv,.md,.html,.htm'
 const fileListShow = ref(false)
 // 改为存储正在轮询的任务UUID
 const pollingTasks = ref(new Set())
+const zipFile = ref(null)
+const batches = ref([])
+const batchPollTimers = new Map()
+const batchFinishNotifications = new Set()
 const upload_url = API_URL + '/api/upload'
 const translatesData = ref([])
 const translatesTotal = ref(0)
@@ -273,6 +317,7 @@ const editionInfo = ref(false)
 //翻译累积数量
 const transCount = ref(0)
 const uploadRef = ref(null)
+const zipUploadRef = ref(null)
 
 const form = ref({
   files: [],
@@ -386,6 +431,127 @@ function getCount() {
 
 function flhandleFileListChange(file, fileList) {
   fileListShow.value = fileList.length > 0 ? true : false
+}
+
+function handleZipChange(file) {
+  if (form.value.files.length > 0) {
+    zipFile.value = null
+    ElMessage.warning('ZIP 文件不能与其他文档同时提交')
+    setTimeout(() => zipUploadRef.value?.clearFiles(), 0)
+    return
+  }
+  zipFile.value = file.raw
+}
+
+function handleZipRemove() {
+  zipFile.value = null
+}
+
+function isBatchFinished(batch) {
+  return ['done', 'partial', 'failed'].includes(batch.status)
+}
+
+function batchPercentage(batch) {
+  if (!batch.total) return 0
+  return Math.round(((batch.done + batch.failed) / batch.total) * 100)
+}
+
+function batchStatusName(status) {
+  return {
+    pending: '排队中',
+    process: '翻译中',
+    done: '已完成',
+    partial: '部分完成',
+    failed: '失败'
+  }[status] || status
+}
+
+function updateBatch(batch) {
+  const index = batches.value.findIndex((item) => item.id === batch.id)
+  if (index === -1) {
+    batches.value.unshift(batch)
+  } else {
+    batches.value[index] = batch
+  }
+}
+
+function scheduleBatchPoll(batchId) {
+  if (batchPollTimers.has(batchId)) {
+    clearTimeout(batchPollTimers.get(batchId))
+  }
+  const timer = setTimeout(() => pollBatch(batchId), 5000)
+  batchPollTimers.set(batchId, timer)
+}
+
+async function pollBatch(batchId) {
+  try {
+    const response = await getTranslateBatch(batchId)
+    if (response.code !== 200) return
+    const batch = response.data
+    updateBatch(batch)
+    getTranslatesData(1)
+    if (isBatchFinished(batch)) {
+      batchPollTimers.delete(batchId)
+      if (batchFinishNotifications.delete(batchId)) {
+        if (batch.status === 'done') {
+          ElMessage.success('批次翻译完成')
+        } else if (batch.status === 'partial') {
+          ElMessage.warning('批次翻译部分完成')
+        } else {
+          ElMessage.error('批次翻译失败')
+        }
+      }
+    } else {
+      scheduleBatchPoll(batchId)
+    }
+  } catch (error) {
+    scheduleBatchPoll(batchId)
+  }
+}
+
+async function loadBatches() {
+  try {
+    const response = await getTranslateBatches()
+    if (response.code !== 200) return
+    batches.value = response.data.batches || []
+    batches.value.filter((batch) => !isBatchFinished(batch)).forEach((batch) => {
+      scheduleBatchPoll(batch.id)
+    })
+  } catch (error) {
+    console.error('读取翻译批次失败:', error)
+  }
+}
+
+async function downloadBatch(batch) {
+  try {
+    const response = await fetch(
+      `${API_URL}/api/translate/batches/${batch.id}/download`,
+      { headers: { token: userStore.token } }
+    )
+    if (!response.ok) throw new Error('批次下载失败')
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = batch.origin_filename || `translations_${batch.id.slice(0, 8)}.zip`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    ElMessage.error(error.message || '批次下载失败')
+  }
+}
+
+function appendBatchFormData(target, values) {
+  Object.entries(values).forEach(([key, value]) => {
+    if (key === 'files' || key === 'translate_id' || key === 'size' || value == null) return
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => target.append(`${key}[${index}]`, item))
+    } else {
+      target.append(key, value)
+    }
+  })
 }
 
 // 进度查询 status: "done"
@@ -514,10 +680,19 @@ async function handleTranslate(transform) {
   // 首先再次赋值，防止没有更新
   form.value = { ...form.value, ...translateStore.getCurrentServiceForm }
 
-  const file_suffix = form.value.files[0].file_name.split('.').pop().toLowerCase()
+  if (!zipFile.value && form.value.files.length === 0) {
+    ElMessage.warning('请先选择要翻译的文件')
+    return
+  }
+
+  const isSingleFile = !zipFile.value && form.value.files.length === 1
+  const file_suffix = isSingleFile
+    ? form.value.files[0].file_name.split('.').pop().toLowerCase()
+    : ''
 
   // 先判断是不是pdf文件和是否启用doc2x
   if (
+    isSingleFile &&
     file_suffix == 'pdf' &&
     translateStore.common.doc2x_flag == 'Y' &&
     translateStore.common.doc2x_secret_key !== ''
@@ -545,6 +720,9 @@ async function handleTranslate(transform) {
     }
     // 4.清空上传文件列表
     uploadRef.value.clearFiles()
+    zipUploadRef.value?.clearFiles()
+    form.value.files = []
+    fileListShow.value = false
     return res
   }
 
@@ -612,30 +790,63 @@ async function handleTranslate(transform) {
   form.value.api_key = userStore.isVip ? '' : form.value.api_key
   form.value.api_url = userStore.isVip ? '' : form.value.api_url
 
-  console.log('翻译表单：', form.value)
-  const res = await transalteFile(form.value)
-  if (res.code == 200) {
-    ElMessage({
-      message: '提交翻译任务成功！',
-      type: 'success'
-    })
+  try {
+    let res
+    let batchId = null
+    if (zipFile.value) {
+      const batchForm = new FormData()
+      appendBatchFormData(batchForm, form.value)
+      batchForm.append('file', zipFile.value, zipFile.value.name)
+      res = await uploadTranslateBatchZip(batchForm)
+      batchId = res.data?.batch_id
+    } else if (form.value.files.length > 1) {
+      res = await createTranslateBatch({
+        ...form.value,
+        translate_ids: form.value.files.map((file) => file.translate_id)
+      })
+      batchId = res.data?.batch_id
+    } else {
+      const selected = form.value.files[0]
+      form.value.uuid = selected.uuid
+      form.value.file_name = selected.file_name
+      form.value.translate_id = selected.translate_id
+      res = await transalteFile(form.value)
+    }
 
-    // 添加到轮询任务集合
-    pollingTasks.value.add(form.value.uuid)
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '提交翻译任务失败')
+      return
+    }
 
-    // 刷新翻译列表
+    ElMessage.success(batchId ? '批次翻译已进入队列' : '提交翻译任务成功')
+    if (batchId) {
+      updateBatch({
+        id: batchId,
+        origin_filename: zipFile.value?.name || null,
+        status: 'pending',
+        total: res.data.total || form.value.files.length,
+        pending: res.data.total || form.value.files.length,
+        processing: 0,
+        done: 0,
+        failed: 0,
+        files: []
+      })
+      batchFinishNotifications.add(batchId)
+      scheduleBatchPoll(batchId)
+    } else {
+      pollingTasks.value.add(form.value.uuid)
+      process(form.value.uuid)
+    }
+
+    form.value.files = []
+    zipFile.value = null
+    fileListShow.value = false
+    uploadRef.value.clearFiles()
+    zipUploadRef.value?.clearFiles()
     getTranslatesData(1)
-    // 启动任务查询
-    process(form.value.uuid)
-  } else {
-    ElMessage({
-      message: '提交翻译任务失败~',
-      type: 'error'
-    })
+  } catch (error) {
+    console.error('提交翻译任务失败:', error)
   }
-
-  // 4.清空上传文件列表
-  uploadRef.value.clearFiles()
 }
 
 // 重启翻译任务
@@ -693,7 +904,7 @@ function beforeUpload(file) {
   if (!userStore.token) {
     return false
   }
-  let ext = file.name.split('.').pop()
+  const ext = file.name.split('.').pop().toLowerCase()
   if (!accepts.split(',').includes('.' + ext)) {
     ElMessage({
       message: '不支持该文件格式',
@@ -702,7 +913,13 @@ function beforeUpload(file) {
     })
     return false
   }
+  if (zipFile.value) {
+    ElMessage.warning('ZIP 文件不能与其他文档同时提交')
+    return false
+  }
+  activeUploads.value += 1
   upload_load.value = true
+  return true
 }
 
 // 上传成功
@@ -711,7 +928,9 @@ function uploadSuccess(res, file) {
     const uploadedFile = {
       file_path: res.data.filepath,
       file_name: res.data.filename,
-      uuid: res.data.uuid
+      uuid: res.data.uuid,
+      translate_id: res.data.translate_id,
+      upload_uid: file.uid
     }
     form.value.file_name = res.data.filename
     form.value.files.push(uploadedFile)
@@ -728,14 +947,21 @@ function uploadSuccess(res, file) {
       type: 'error'
     })
   }
-  setTimeout(() => {
-    upload_load.value = false
-  }, 1000)
+  activeUploads.value = Math.max(0, activeUploads.value - 1)
+  upload_load.value = activeUploads.value > 0
 }
 
 function uploadError(data) {
+  activeUploads.value = Math.max(0, activeUploads.value - 1)
+  upload_load.value = activeUploads.value > 0
+  let message = data?.message || '上传失败'
+  try {
+    message = JSON.parse(data.message).message || message
+  } catch (error) {
+    // Keep the transport error text when it is not JSON.
+  }
   ElMessage({
-    message: `上传失败，${JSON.parse(data.message).message}`,
+    message: `上传失败，${message}`,
     type: 'error'
   })
 }
@@ -744,7 +970,7 @@ function delUploadFile(file, files) {
   let filepath = ''
   let uuid = '' // 初始化 uuid 变量
   form.value.files.forEach((item, index) => {
-    if (item.file_name === file.name) {
+    if (item.upload_uid === file.uid || item.file_name === file.name) {
       filepath = item.file_path
       uuid = item.uuid // 获取要删除文件的 uuid
       form.value.files.splice(index, 1)
@@ -755,6 +981,7 @@ function delUploadFile(file, files) {
   pollingTasks.value.delete(uuid)
 
   // 删除文件
+  if (!uuid) return true
   delFile({ filepath, uuid })
     .then((response) => {
       if (response.code === 200) {
@@ -940,6 +1167,7 @@ async function downAllTransFile() {
 onMounted(() => {
   if (userStore.token) {
     getTranslatesData(1)
+    loadBatches()
     form.value = { ...form.value, ...translateStore.getCurrentServiceForm }
   }
 })
@@ -948,6 +1176,9 @@ onMounted(() => {
 onUnmounted(() => {
   // 清空所有轮询任务
   pollingTasks.value.clear()
+  batchPollTimers.forEach((timer) => clearTimeout(timer))
+  batchPollTimers.clear()
+  batchFinishNotifications.clear()
 })
 </script>
 
@@ -985,6 +1216,23 @@ onUnmounted(() => {
   padding: 28px 28px;
   box-sizing: border-box;
   margin-top: 20px;
+}
+.zip_picker {
+  min-height: 32px;
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 12px;
+  color: #606266;
+  font-size: 14px;
+  > span {
+    line-height: 32px;
+  }
+  :deep(.el-upload-list) {
+    margin: 6px 0 0;
+    max-width: 360px;
+  }
 }
 ::v-deep {
   .dropzone {
@@ -1168,6 +1416,41 @@ onUnmounted(() => {
         }
       }
     }
+    .batch_list {
+      margin: 14px 0 8px;
+      border-top: 1px solid #e5e5e5;
+      .batch_row {
+        min-height: 52px;
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) minmax(180px, 280px) 72px 116px;
+        gap: 16px;
+        align-items: center;
+        border-bottom: 1px solid #e5e5e5;
+        font-size: 14px;
+      }
+      .batch_name {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        small {
+          margin-top: 3px;
+          color: #8a8f99;
+        }
+      }
+      .batch_status {
+        color: #606266;
+        white-space: nowrap;
+      }
+      .el-button svg {
+        width: 16px;
+        margin-right: 6px;
+      }
+    }
     /*任务列表*/
     .table_box {
       width: 100;
@@ -1266,6 +1549,9 @@ onUnmounted(() => {
   .upload-container {
     padding: 20px !important;
   }
+  .zip_picker {
+    justify-content: center;
+  }
   .list_box {
     padding: 0 20px !important;
     .title_box {
@@ -1283,6 +1569,25 @@ onUnmounted(() => {
         .storage {
           white-space: nowrap;
         }
+      }
+    }
+    .batch_list .batch_row {
+      grid-template-columns: minmax(0, 1fr) 86px;
+      gap: 8px 12px;
+      padding: 10px 0;
+      .el-progress {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+      }
+      .batch_status {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+      }
+      .el-button {
+        grid-column: 1 / -1;
+        width: 100%;
       }
     }
     .table_box {

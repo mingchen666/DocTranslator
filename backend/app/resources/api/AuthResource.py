@@ -83,7 +83,10 @@ class UserLoginResource(Resource):
         if not customer or not verify_password(customer.password, data['password']):
             return APIResponse.error('账号或密码错误')
         # 确保identity是字符串
-        access_token = create_access_token(identity=str(customer.id))
+        access_token = create_access_token(
+            identity=str(customer.id),
+            additional_claims={'role': 'user'},
+        )
         return APIResponse.success({
             'token': access_token,
             'email': data['email'],

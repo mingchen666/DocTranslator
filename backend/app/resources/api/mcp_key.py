@@ -7,7 +7,6 @@ from app.models.mcp_api_key import McpApiKey
 from app.utils.response import APIResponse
 
 MAX_KEYS_PER_USER = 5
-MAX_KEYS_PER_ADMIN = 3
 
 
 class McpKeyListResource(Resource):
@@ -31,20 +30,15 @@ class McpKeyCreateResource(Resource):
         customer_id = get_jwt_identity()
 
         name = data.get('name', '')
-        scope = data.get('scope', 'user')
         config = data.get('config', {})
 
-        if scope not in ('user', 'admin'):
-            return APIResponse.error('scope 必须为 user 或 admin', 400)
-
-        max_keys = MAX_KEYS_PER_USER if scope == 'user' else MAX_KEYS_PER_ADMIN
         current_count = McpApiKey.query.filter_by(
             customer_id=customer_id,
-            scope=scope,
+            scope='user',
             deleted_flag='N'
         ).count()
-        if current_count >= max_keys:
-            return APIResponse.error(f'每个用户最多创建 {max_keys} 个 {scope} 密钥', 400)
+        if current_count >= MAX_KEYS_PER_USER:
+            return APIResponse.error(f'每个用户最多创建 {MAX_KEYS_PER_USER} 个 user 密钥', 400)
 
         default_config = dict(McpApiKey.DEFAULT_CONFIG)
         default_config.update(config)
@@ -61,7 +55,7 @@ class McpKeyCreateResource(Resource):
             key_prefix=key_prefix,
             name=name,
             customer_id=customer_id,
-            scope=scope,
+            scope='user',
             config=default_config,
         )
         db.session.add(mcp_key)
@@ -81,6 +75,7 @@ class McpKeyDetailResource(Resource):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id,
             customer_id=customer_id,
+            scope='user',
             deleted_flag='N'
         ).first()
         if not mcp_key:
@@ -94,6 +89,7 @@ class McpKeyDetailResource(Resource):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id,
             customer_id=customer_id,
+            scope='user',
             deleted_flag='N'
         ).first()
         if not mcp_key:
@@ -117,6 +113,7 @@ class McpKeyDetailResource(Resource):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id,
             customer_id=customer_id,
+            scope='user',
             deleted_flag='N'
         ).first()
         if not mcp_key:
@@ -133,6 +130,7 @@ class McpKeyRegenerateResource(Resource):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id,
             customer_id=customer_id,
+            scope='user',
             deleted_flag='N'
         ).first()
         if not mcp_key:

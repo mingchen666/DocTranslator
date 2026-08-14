@@ -9,6 +9,7 @@
 """
 import datetime
 import logging
+import os
 import re
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from docx.text.run import Run
 from docx.table import Table, _Cell
 from . import to_translate
 from . import common
+from .docx_inline import InlinePlan, build_inline_plan
 
 # 分块配置
 MAX_CHUNK_SIZE = 2000
@@ -64,6 +66,7 @@ class TextBlock:
     table_index: int = -1
     row_index: int = -1
     col_index: int = -1
+    cell_paragraph_index: int = 0
     header_footer_type: str = ""
     section_index: int = -1
 
@@ -85,6 +88,8 @@ class TextBlock:
     sub_index: int = 0
     sub_total: int = 1
     parent_uid: str = ""
+    inline_plan: Optional[InlinePlan] = None
+    fallback_used: bool = False
 
 
 def start(trans: Dict[str, Any]) -> bool:
@@ -117,9 +122,8 @@ def start(trans: Dict[str, Any]) -> bool:
 
     if not blocks_to_translate:
         logging.info(f"[任务{translate_id}] 文档中没有需要翻译的文本")
-        document.save(trans['target_file'])
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        _save_and_validate_document(document, trans['target_file'])
+        return to_translate.complete(trans, 0, "0秒")
 
     logging.info(
         f"[任务{translate_id}] 共 {len(text_blocks)} 个块，{len(blocks_to_translate)} 个需要翻译")
@@ -136,7 +140,7 @@ def start(trans: Dict[str, Any]) -> bool:
     try:
         text_count = _apply_translation(document, text_blocks, only_translation,
                                         inherit_format, trans.get('lang', '英语'))
-        document.save(trans['target_file'])
+        _save_and_validate_document(document, trans['target_file'])
     except Exception as e:
         logging.error(f"[任务{translate_id}] 保存文档失败: {e}")
         to_translate.error(translate_id, f"保存文档失败: {str(e)}")
@@ -144,8 +148,26 @@ def start(trans: Dict[str, Any]) -> bool:
 
     end_time = datetime.datetime.now()
     spend_time = common.display_spend(start_time, end_time)
-    to_translate.complete(trans, text_count, spend_time)
-    return True
+    return to_translate.complete(trans, text_count, spend_time)
+
+
+def _save_and_validate_document(document: Document, target_file: str):
+    """保存后重新打开DOCX，避免发布损坏或关系不完整的文件。"""
+    try:
+        document.save(target_file)
+        reopened = Document(target_file)
+        _ = len(reopened.sections)
+        for part in reopened.part.package.parts:
+            for relationship in part.rels.values():
+                if not relationship.is_external:
+                    _ = relationship.target_part
+    except Exception:
+        if target_file and os.path.isfile(target_file):
+            try:
+                os.remove(target_file)
+            except OSError:
+                logging.warning("删除无效DOCX输出失败: %s", target_file)
+        raise
 
 
 # ==================== 文本提取 ====================
@@ -178,7 +200,8 @@ def _extract_paragraph_blocks(paragraph: Paragraph, para_idx: int, next_uid) -> 
     """提取段落文本块"""
     blocks = []
 
-    text = _get_paragraph_text(paragraph)
+    inline_plan = build_inline_plan(paragraph)
+    text = inline_plan.original_text
 
     if not text or not text.strip():
         return blocks
@@ -207,26 +230,21 @@ def _extract_paragraph_blocks(paragraph: Paragraph, para_idx: int, next_uid) -> 
             paragraph_index=para_idx,
             original_text=text,
             run_style=run_style,
-            para_format=para_format
+            para_format=para_format,
+            inline_plan=inline_plan,
         )
         blocks.append(block)
     else:
-        sub_texts = _split_by_sentences(text, MAX_CHUNK_SIZE)
-        parent_uid = next_uid("para_parent")
-        for i, sub_text in enumerate(sub_texts):
-            block = TextBlock(
-                uid=next_uid("para_sub"),
-                block_type="paragraph",
-                paragraph_index=para_idx,
-                original_text=sub_text,
-                run_style=run_style,
-                para_format=para_format,
-                is_sub=True,
-                sub_index=i,
-                sub_total=len(sub_texts),
-                parent_uid=parent_uid
-            )
-            blocks.append(block)
+        block = TextBlock(
+            uid=next_uid("para"),
+            block_type="paragraph",
+            paragraph_index=para_idx,
+            original_text=text,
+            run_style=run_style,
+            para_format=para_format,
+            inline_plan=inline_plan,
+        )
+        blocks.append(block)
 
     return blocks
 
@@ -243,63 +261,39 @@ def _extract_table_blocks(table: Table, table_idx: int, next_uid) -> List[TextBl
                 continue
             processed_cells.add(cell_id)
 
-            text = _get_cell_text(cell)
+            for paragraph_index, paragraph in enumerate(cell.paragraphs):
+                inline_plan = build_inline_plan(paragraph)
+                text = inline_plan.original_text
+                if not text or not text.strip():
+                    continue
 
-            if not text or not text.strip():
-                continue
-
-            # 提取单元格第一段落的格式
-            para_format = None
-            if cell.paragraphs:
-                para_format = _extract_paragraph_format(cell.paragraphs[0])
-
-            if not _should_translate(text):
-                block = TextBlock(
-                    uid=next_uid("cell"),
-                    block_type="table_cell",
-                    table_index=table_idx,
-                    row_index=row_idx,
-                    col_index=col_idx,
-                    original_text=text,
-                    para_format=para_format,
-                    skip=True
-                )
-                blocks.append(block)
-                continue
-
-            run_style = _extract_cell_first_run_style(cell)
-
-            if len(text) <= MAX_CHUNK_SIZE:
-                block = TextBlock(
-                    uid=next_uid("cell"),
-                    block_type="table_cell",
-                    table_index=table_idx,
-                    row_index=row_idx,
-                    col_index=col_idx,
-                    original_text=text,
-                    run_style=run_style,
-                    para_format=para_format
-                )
-                blocks.append(block)
-            else:
-                sub_texts = _split_by_sentences(text, MAX_CHUNK_SIZE)
-                parent_uid = next_uid("cell_parent")
-                for i, sub_text in enumerate(sub_texts):
-                    block = TextBlock(
-                        uid=next_uid("cell_sub"),
+                para_format = _extract_paragraph_format(paragraph)
+                if not _should_translate(text):
+                    blocks.append(TextBlock(
+                        uid=next_uid("cell"),
                         block_type="table_cell",
                         table_index=table_idx,
                         row_index=row_idx,
                         col_index=col_idx,
-                        original_text=sub_text,
-                        run_style=run_style,
+                        cell_paragraph_index=paragraph_index,
+                        original_text=text,
                         para_format=para_format,
-                        is_sub=True,
-                        sub_index=i,
-                        sub_total=len(sub_texts),
-                        parent_uid=parent_uid
-                    )
-                    blocks.append(block)
+                        skip=True,
+                    ))
+                    continue
+
+                blocks.append(TextBlock(
+                    uid=next_uid("cell"),
+                    block_type="table_cell",
+                    table_index=table_idx,
+                    row_index=row_idx,
+                    col_index=col_idx,
+                    cell_paragraph_index=paragraph_index,
+                    original_text=text,
+                    run_style=_extract_first_run_style(paragraph),
+                    para_format=para_format,
+                    inline_plan=inline_plan,
+                ))
 
     return blocks
 
@@ -326,7 +320,8 @@ def _extract_header_footer_blocks(section, section_idx: int, next_uid) -> List[T
 
         try:
             for para_idx, paragraph in enumerate(hf.paragraphs):
-                text = _get_paragraph_text(paragraph)
+                inline_plan = build_inline_plan(paragraph)
+                text = inline_plan.original_text
                 if text and text.strip() and _should_translate(text):
                     run_style = _extract_first_run_style(paragraph)
                     para_format = _extract_paragraph_format(paragraph)
@@ -338,7 +333,8 @@ def _extract_header_footer_blocks(section, section_idx: int, next_uid) -> List[T
                         paragraph_index=para_idx,
                         original_text=text,
                         run_style=run_style,
-                        para_format=para_format
+                        para_format=para_format,
+                        inline_plan=inline_plan,
                     )
                     blocks.append(block)
         except Exception as e:
@@ -531,13 +527,23 @@ def _split_by_sentences(text: str, max_size: int) -> List[str]:
 
 def _blocks_to_texts(blocks: List[TextBlock]) -> List[Dict]:
     """将TextBlock列表转换为翻译接口格式"""
-    return [{
-        'text': b.original_text,
-        'original': b.original_text,
-        'complete': False,
-        'count': 0,
-        '_block_uid': b.uid
-    } for b in blocks]
+    texts = []
+    for block in blocks:
+        item = {
+            'text': (
+                block.inline_plan.payload
+                if block.inline_plan is not None
+                else block.original_text
+            ),
+            'original': block.original_text,
+            'complete': False,
+            'count': 0,
+            '_block_uid': block.uid,
+        }
+        if block.inline_plan is not None:
+            item.update(block.inline_plan.translation_metadata())
+        texts.append(item)
+    return texts
 
 
 def _sync_results(blocks: List[TextBlock], texts: List[Dict]):
@@ -551,6 +557,7 @@ def _sync_results(blocks: List[TextBlock], texts: List[Dict]):
             block.translated_text = text_item.get('text', block.original_text)
             block.complete = text_item.get('complete', False)
             block.count = text_item.get('count', 0)
+            block.fallback_used = text_item.get('fallback_used', False)
 
 
 # ==================== 应用翻译 ====================
@@ -581,12 +588,15 @@ def _apply_translation(document: Document, all_blocks: List[TextBlock],
                     continue
                 processed_cells.add(cell_id)
 
-                key = (table_idx, row_idx, col_idx)
-                if key in table_blocks:
-                    blocks = table_blocks[key]
-                    count = _apply_to_cell(cell, blocks, only_translation,
-                                           inherit_format, target_lang)
-                    text_count += count
+                for paragraph_index, paragraph in enumerate(cell.paragraphs):
+                    key = (table_idx, row_idx, col_idx, paragraph_index)
+                    if key in table_blocks:
+                        blocks = table_blocks[key]
+                        count = _apply_to_paragraph(
+                            paragraph, blocks, only_translation,
+                            inherit_format, target_lang
+                        )
+                        text_count += count
 
     for section_idx, section in enumerate(document.sections):
         _apply_to_header_footer(section, section_idx, hf_blocks,
@@ -615,7 +625,10 @@ def _organize_table_blocks(blocks: List[TextBlock]) -> Dict[tuple, List[TextBloc
     result = {}
     for b in blocks:
         if b.block_type == "table_cell":
-            key = (b.table_index, b.row_index, b.col_index)
+            key = (
+                b.table_index, b.row_index, b.col_index,
+                b.cell_paragraph_index,
+            )
             if key not in result:
                 result[key] = []
             result[key].append(b)
@@ -659,6 +672,23 @@ def _apply_to_paragraph(paragraph: Paragraph, blocks: List[TextBlock],
     run_style = blocks[0].run_style
     para_format = blocks[0].para_format
 
+    if blocks[0].inline_plan is not None:
+        plan = blocks[0].inline_plan
+        if only_translation:
+            plan.apply(translated, blocks[0].fallback_used)
+            _apply_inline_plan_fonts(plan, target_lang)
+            _apply_paragraph_format(paragraph, para_format)
+        else:
+            _append_translation_to_paragraph(
+                paragraph,
+                plan.plain_translation(translated),
+                run_style,
+                para_format,
+                inherit_format,
+                target_lang,
+            )
+        return text_count
+
     if only_translation:
         _replace_paragraph_text(paragraph, translated, run_style, para_format,
                                 inherit_format, target_lang, len(original))
@@ -673,29 +703,13 @@ def _apply_to_cell(cell: _Cell, blocks: List[TextBlock],
                    only_translation: bool, inherit_format: bool,
                    target_lang: str) -> int:
     """应用翻译到单元格"""
-    text_count = sum(b.count for b in blocks)
-
-    if any(b.is_sub for b in blocks):
-        original = ''.join(b.original_text for b in blocks)
-        translated = ''.join(b.translated_text or b.original_text for b in blocks)
-    else:
-        original = blocks[0].original_text
-        translated = blocks[0].translated_text or original
-
-    if blocks[0].skip:
-        return 0
-
-    run_style = blocks[0].run_style
-    para_format = blocks[0].para_format
-
-    if only_translation:
-        _replace_cell_text(cell, translated, run_style, para_format,
-                           inherit_format, target_lang, len(original))
-    else:
-        _append_translation_to_cell(cell, translated, run_style, para_format,
-                                    inherit_format, target_lang)
-
-    return text_count
+    paragraph_index = blocks[0].cell_paragraph_index
+    if paragraph_index >= len(cell.paragraphs):
+        raise ValueError('DOCX表格段落索引越界')
+    return _apply_to_paragraph(
+        cell.paragraphs[paragraph_index], blocks,
+        only_translation, inherit_format, target_lang
+    )
 
 
 def _apply_to_header_footer(section, section_idx: int,
@@ -718,19 +732,30 @@ def _apply_to_header_footer(section, section_idx: int,
                 key = (section_idx, hf_type, para_idx)
                 if key in hf_blocks:
                     blocks = hf_blocks[key]
-                    translated = blocks[0].translated_text or blocks[0].original_text
-                    original_len = len(blocks[0].original_text)
-
-                    if only_translation:
-                        _replace_paragraph_text(paragraph, translated,
-                                                blocks[0].run_style, blocks[0].para_format,
-                                                inherit_format, target_lang, original_len)
-                    else:
-                        _append_translation_to_paragraph(paragraph, translated,
-                                                         blocks[0].run_style, blocks[0].para_format,
-                                                         inherit_format, target_lang)
+                    _apply_to_paragraph(
+                        paragraph, blocks, only_translation,
+                        inherit_format, target_lang
+                    )
         except Exception as e:
-            logging.warning(f"处理页眉页脚失败: {e}")
+            logging.error(f"处理页眉页脚失败: {e}")
+            raise
+
+
+def _apply_inline_plan_fonts(plan: InlinePlan, target_lang: str):
+    """在不改变强调样式的前提下补齐目标语言字体设置。"""
+    for span in plan.spans:
+        try:
+            run = Run(span.run_element, plan.paragraph)
+            style = _extract_run_style(run)
+            _apply_run_style(
+                run,
+                style,
+                target_lang,
+                len(run.text or ''),
+                len(span.original_text),
+            )
+        except Exception as e:
+            logging.warning("应用DOCX inline字体失败: %s", e)
 
 
 def _replace_paragraph_text(paragraph: Paragraph, new_text: str,

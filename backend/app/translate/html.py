@@ -65,8 +65,7 @@ def start(trans: Dict) -> bool:
     if not content or not content.strip():
         logging.info(f"[任务{translate_id}] 文件内容为空")
         _write_file(trans['target_file'], "")
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     try:
         from bs4 import BeautifulSoup
@@ -95,8 +94,7 @@ def start(trans: Dict) -> bool:
     if not extracted_texts:
         logging.info(f"[任务{translate_id}] 没有需要翻译的文本内容")
         _write_file(trans['target_file'], content)
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     texts = _build_text_items(extracted_texts)
 
@@ -104,8 +102,7 @@ def start(trans: Dict) -> bool:
     if to_translate_count == 0:
         logging.info(f"[任务{translate_id}] 没有需要翻译的内容")
         _write_file(trans['target_file'], content)
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     logging.info(
         f"[任务{translate_id}] 提取 {len(extracted_texts)} 个文本段，"
@@ -125,8 +122,7 @@ def start(trans: Dict) -> bool:
 
     end_time = datetime.datetime.now()
     spend_time = common.display_spend(start_time, end_time)
-    to_translate.complete(trans, text_count, spend_time)
-    return True
+    return to_translate.complete(trans, text_count, spend_time)
 
 
 def _read_file(file_path: str) -> Tuple[str, str]:
@@ -170,36 +166,42 @@ def _extract_and_placeholder(soup, placeholder_map: Dict, extracted_texts: List[
 
                 if in_preserve:
                     ph = _next_placeholder('p')
+                    placeholder_node = NavigableString(ph)
                     placeholder_map[ph] = text
                     extracted_texts.append({
                         'placeholder': ph,
                         'original': text,
                         'skip': True,
-                        'type': 'text'
+                        'type': 'text',
+                        'node': placeholder_node,
                     })
-                    element.replace_with(NavigableString(ph))
+                    element.replace_with(placeholder_node)
                     return
 
                 if _should_translate(text):
                     ph = _next_placeholder('t')
+                    placeholder_node = NavigableString(ph)
                     placeholder_map[ph] = text
                     extracted_texts.append({
                         'placeholder': ph,
                         'original': text,
                         'skip': False,
-                        'type': 'text'
+                        'type': 'text',
+                        'node': placeholder_node,
                     })
-                    element.replace_with(NavigableString(ph))
+                    element.replace_with(placeholder_node)
                 else:
                     ph = _next_placeholder('s')
+                    placeholder_node = NavigableString(ph)
                     placeholder_map[ph] = text
                     extracted_texts.append({
                         'placeholder': ph,
                         'original': text,
                         'skip': True,
-                        'type': 'text'
+                        'type': 'text',
+                        'node': placeholder_node,
                     })
-                    element.replace_with(NavigableString(ph))
+                    element.replace_with(placeholder_node)
                 return
 
             if isinstance(element, Tag):
@@ -338,9 +340,8 @@ def _write_result(trans: Dict, texts: List[Dict], extracted_texts: List[Dict],
     写入翻译结果
     步骤：
     1. 从texts中收集每个占位符对应的翻译结果
-    2. 将attr类型的翻译结果直接设置到DOM元素上
-    3. 将soup序列化为HTML字符串
-    4. 用字符串替换将文本占位符替换为翻译结果
+    2. 将文本和属性翻译结果直接设置到DOM对象上
+    3. 将soup安全地序列化为HTML字符串
     HTML文件始终保持完整HTML结构输出，不进行only_translation处理
     """
     text_count = 0
@@ -363,22 +364,28 @@ def _write_result(trans: Dict, texts: List[Dict], extracted_texts: List[Dict],
         else:
             placeholder_translations[ph] = translated
 
+    from bs4 import NavigableString
+
     for item in extracted_texts:
+        translated_val = placeholder_translations.get(
+            item['placeholder'], item['original']
+        )
         if item['type'] == 'attr':
             element = item.get('element')
             attr_name = item.get('attr_name')
-            if element is not None and attr_name:
-                translated_val = placeholder_translations.get(item['placeholder'], item['original'])
-                try:
-                    element[attr_name] = translated_val
-                except Exception as e:
-                    logging.warning(f"替换属性值失败: {e}")
+            if element is None or not attr_name:
+                raise ValueError('HTML属性占位符缺少DOM引用')
+            element[attr_name] = translated_val
+        elif item['type'] == 'text':
+            node = item.get('node')
+            if node is None or node.parent is None:
+                raise ValueError('HTML文本占位符缺少DOM引用')
+            node.replace_with(NavigableString(translated_val))
 
     html_str = str(soup)
-
-    for ph, original_text in placeholder_map.items():
-        translated_text = placeholder_translations.get(ph, original_text)
-        html_str = html_str.replace(ph, translated_text)
+    remaining = [ph for ph in placeholder_map if ph in html_str]
+    if remaining:
+        raise ValueError(f'HTML占位符未完全恢复: {remaining[0]}')
 
     _write_file(trans['target_file'], html_str)
 

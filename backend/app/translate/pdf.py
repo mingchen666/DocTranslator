@@ -1,59 +1,31 @@
 import os
 import logging
-import shutil
 import asyncio
 import datetime
 from pathlib import Path
 from babeldoc.format.pdf import high_level
+from babeldoc.glossary import Glossary, GlossaryEntry
 from babeldoc.translator.translator import OpenAITranslator
 from babeldoc.docvision.table_detection.rapidocr import RapidOCRModel
 from babeldoc.format.pdf.translation_config import TranslationConfig, WatermarkOutputMode
 
 from . import common, db, to_translate
+from .pdf_paths import move_babeldoc_output
 from babeldoc.docvision.doclayout import DocLayoutModel
 
 logger = logging.getLogger(__name__)
 
 
-def clean_output_filename(original_path: Path, output_dir: str) -> Path:
-    """清理babeldoc生成的多余后缀"""
-    stem = original_path.stem.split('.')[0]
-    new_path = Path(output_dir) / f"{stem}{original_path.suffix}"
-
-    # 支持所有可能的输出文件名变体
-    possible_suffixes = [
-        '.dual', '.mono',
-        '.no_watermark.en.dual', '.no_watermark.en.mono',
-        '.en.dual', '.en.mono',
-        '.no_watermark.zh.mono', '.no_watermark.zh.dual',
-        '.zh.dual', '.zh.mono',
-        'no_watermark.zh.dual',
-        'no_watermark.en.dual',
-        '.no_watermark.zh.mono',
-        'no_watermark.zh.mono',
-        'no_watermark.zh.mono',
-        'no_watermark.en.mono',
-        '.no_watermark.en.mono',
-        'no_watermark.en.mono',
-        'no_watermark.ko.mono',
-        'no_watermark.ru.mono',
-        'no_watermark.es.mono',
-        'no_watermark.pt.mono',
-        'no_watermark.fr.mono',
-        'no_watermark.it.mono',
-        'no_watermark.de.mono',
-        'no_watermark.ar.mono',
-        'no_watermark.ja.mono'
+def _build_glossaries(terms):
+    """Convert the task's validated term pairs to BabelDOC glossaries."""
+    if not terms:
+        return None
+    entries = [
+        GlossaryEntry(term['source'], term['target'])
+        for term in terms
+        if term.get('source') and term.get('target')
     ]
-
-    for suffix in possible_suffixes:
-        temp_path = Path(output_dir) / f"{stem}{suffix}{original_path.suffix}"
-        if temp_path.exists():
-            shutil.move(temp_path, new_path)
-            logger.info(f"重命名文件: {temp_path} -> {new_path}")
-            break
-
-    return new_path if new_path.exists() else None
+    return [Glossary(name='task_glossary', entries=entries)] if entries else None
 
 
 async def async_translate_pdf(trans):
@@ -118,7 +90,8 @@ async def async_translate_pdf(trans):
             enhance_compatibility=trans.get('enhance_compatibility', False),
             use_alternating_pages_dual=trans.get('use_alternating_pages_dual', False),
             report_interval=0.1,
-            custom_system_prompt=trans.get('custom_system_prompt'),
+            custom_system_prompt=trans.get('prompt'),
+            glossaries=_build_glossaries(trans.get('terms_dict')),
             working_dir=trans.get('working_dir'),
             auto_extract_glossary=trans.get('auto_extract_glossary', False),
             auto_enable_ocr_workaround=trans.get('auto_enable_ocr_workaround', False),
@@ -151,28 +124,40 @@ async def async_translate_pdf(trans):
 
             elif event["type"] == "finish":
                 logger.info("翻译完成")
-                # 处理输出文件名
-                final_path = clean_output_filename(original_path, trans['target_path_dir'])
+                # BabelDOC reports the exact output path. Move that intermediate
+                # artifact to the task's stable target name without guessing suffixes.
+                final_path = move_babeldoc_output(
+                    event,
+                    trans['target_file'],
+                )
 
                 # 更新数据库记录
-                if final_path and final_path.exists():
-                    db.execute(
-                        "UPDATE translate SET target_file=%s WHERE id=%s",
-                        str(final_path),
-                        trans['id']
-                    )
-                    logger.info(f"输出文件: {final_path}")
+                if not final_path or not final_path.exists():
+                    to_translate.error(trans['id'], "PDF翻译完成但未找到输出文件")
+                    return False
+
+                path_updated = db.execute(
+                    "UPDATE translate SET target_filepath=%s WHERE id=%s",
+                    str(final_path),
+                    trans['id']
+                )
+                if not path_updated:
+                    to_translate.error(trans['id'], "PDF输出路径写入数据库失败")
+                    return False
+
+                trans['target_file'] = str(final_path)
+                logger.info(f"输出文件: {final_path}")
 
                 # 计算token使用量
                 spend_time = (datetime.datetime.now() - start_time).total_seconds()
 
                 # 触发完成回调
-                to_translate.complete(
+                return to_translate.complete(
                     trans,
                     text_count=1,  # PDF按文件计数
-                    spend_time=spend_time
+                    spend_time=spend_time,
+                    target_path=str(final_path),
                 )
-                return True
 
             elif event["type"] == "error":
                 error_msg = event.get("error", "未知错误")
@@ -219,10 +204,12 @@ def start(trans):
             raise ValueError(f"文件不是PDF格式: {trans['file_path']}")
 
         # 初始化任务状态
-        db.execute(
+        started = db.execute(
             "UPDATE translate SET status='process', process=0, start_at=NOW() WHERE id=%s",
             trans['id']
         )
+        if not started:
+            raise RuntimeError("PDF任务状态初始化失败")
 
         # 确保输出目录存在
         os.makedirs(trans['target_path_dir'], exist_ok=True)

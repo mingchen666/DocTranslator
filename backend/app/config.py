@@ -7,7 +7,78 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
+
+def normalize_oss_prefix(value):
+    """Return a safe relative OSS prefix with one trailing slash."""
+    prefix = str(value or '').strip()
+    if (
+        not prefix
+        or '..' in prefix
+        or '\\' in prefix
+        or any(ord(character) < 32 or ord(character) == 127 for character in prefix)
+    ):
+        raise RuntimeError('OSS_PREFIX必须是安全的相对路径前缀')
+    normalized = prefix.strip('/')
+    if not normalized:
+        raise RuntimeError('OSS_PREFIX不能为空')
+    return f'{normalized}/'
+
 class Config:
+    # Translation queue backend: database (default) or celery.
+    TRANSLATION_QUEUE_BACKEND = os.getenv(
+        'TRANSLATION_QUEUE_BACKEND', 'database'
+    ).strip().lower()
+    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', '').strip()
+    CELERY_VISIBILITY_TIMEOUT = int(
+        os.getenv('CELERY_VISIBILITY_TIMEOUT', 21600)
+    )
+    CELERY_MAX_RETRIES = int(os.getenv('CELERY_MAX_RETRIES', 3))
+    CELERY_LOCK_TIMEOUT = int(os.getenv('CELERY_LOCK_TIMEOUT', 120))
+    RESULT_STORAGE_BACKEND = os.getenv(
+        'RESULT_STORAGE_BACKEND', 'local'
+    ).strip().lower()
+    OSS_ENDPOINT = os.getenv('OSS_ENDPOINT', '').strip()
+    OSS_BUCKET = os.getenv('OSS_BUCKET', '').strip()
+    OSS_ACCESS_KEY_ID = os.getenv('OSS_ACCESS_KEY_ID', '').strip()
+    OSS_ACCESS_KEY_SECRET = os.getenv('OSS_ACCESS_KEY_SECRET', '').strip()
+    OSS_PREFIX = os.getenv('OSS_PREFIX', 'translations/').strip()
+
+    @classmethod
+    def validate_queue_backend(cls):
+        if cls.TRANSLATION_QUEUE_BACKEND not in {'database', 'celery'}:
+            raise RuntimeError(
+                'TRANSLATION_QUEUE_BACKEND必须是database或celery'
+            )
+        if cls.TRANSLATION_QUEUE_BACKEND == 'celery':
+            if not cls.CELERY_BROKER_URL:
+                raise RuntimeError(
+                    'TRANSLATION_QUEUE_BACKEND=celery时必须设置CELERY_BROKER_URL'
+                )
+            if not cls.CELERY_BROKER_URL.startswith(('redis://', 'rediss://')):
+                raise RuntimeError('CELERY_BROKER_URL必须是redis://或rediss://地址')
+            if cls.CELERY_LOCK_TIMEOUT < 30:
+                raise RuntimeError('CELERY_LOCK_TIMEOUT不能小于30秒')
+
+    @classmethod
+    def validate_result_storage(cls):
+        if cls.RESULT_STORAGE_BACKEND not in {'local', 'oss'}:
+            raise RuntimeError('RESULT_STORAGE_BACKEND必须是local或oss')
+        cls.OSS_PREFIX = normalize_oss_prefix(cls.OSS_PREFIX)
+        if cls.RESULT_STORAGE_BACKEND == 'oss':
+            missing = [
+                name for name in (
+                    'OSS_ENDPOINT',
+                    'OSS_BUCKET',
+                    'OSS_ACCESS_KEY_ID',
+                    'OSS_ACCESS_KEY_SECRET',
+                )
+                if not getattr(cls, name, '')
+            ]
+            if missing:
+                raise RuntimeError(
+                    'RESULT_STORAGE_BACKEND=oss时缺少配置: '
+                    + ', '.join(missing)
+                )
     # JWT配置
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=20)
@@ -34,10 +105,19 @@ class Config:
     UPLOAD_BASE_DIR='storage'
     UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads')
     DATE_FORMAT = "%Y-%m-%d"  # 日期格式
-    ALLOWED_EXTENSIONS = {'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
+    ALLOWED_EXTENSIONS = {
+        'docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv', 'html', 'htm'
+    }
     # UPLOAD_FOLDER = '/uploads'  # 建议使用绝对路径
     MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50)) * 1024 * 1024  # 50MB
     MAX_USER_STORAGE = int(os.getenv('MAX_USER_STORAGE', 100 ))* 1024 * 1024  # 默认100MB
+    BATCH_MAX_FILES = int(os.getenv('BATCH_MAX_FILES', 20))
+    BATCH_MAX_UNCOMPRESSED_SIZE = int(
+        os.getenv('BATCH_MAX_UNCOMPRESSED_SIZE_MB', 200)
+    ) * 1024 * 1024
+    BATCH_MAX_COMPRESSION_RATIO = int(
+        os.getenv('BATCH_MAX_COMPRESSION_RATIO', 100)
+    )
     # 翻译结果存储配置
     STORAGE_FOLDER = '/app/storage'  # 翻译结果存储路径
     STATIC_FOLDER = '/public/static'  # 设置静态文件路径

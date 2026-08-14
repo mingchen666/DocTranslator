@@ -6,6 +6,7 @@ from app import db
 from app.models.customer import Customer
 from app.models.translate import Translate
 from app.utils.response import APIResponse
+from app.utils.file_security import safe_storage_path, stored_filename
 from pathlib import Path
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -39,7 +40,11 @@ class FileUploadResource(Resource):
         # 获取用户存储信息
         user_id = get_jwt_identity()
         customer = Customer.query.get(user_id)
-        file_size = request.content_length  # 使用实际内容长度
+        file.stream.seek(0, os.SEEK_END)
+        file_size = file.stream.tell()
+        file.stream.seek(0)
+        if not customer:
+            return APIResponse.error('用户不存在', 401)
 
         # 验证存储空间current_app.config['MAX_USER_STORAGE']
         if customer.storage + file_size > customer.total_storage:
@@ -48,18 +53,13 @@ class FileUploadResource(Resource):
         try:
             # 生成存储路径
             save_dir = self.get_upload_dir()
-            filename = file.filename  # 直接使用原始文件名
-            save_path = os.path.join(save_dir, filename)
-
-            # 检查路径是否安全
-            if not self.is_safe_path(save_dir, save_path):
-                return APIResponse.error('文件名包含非法字符', 400)
+            filename, disk_name = stored_filename(file.filename)
+            save_path = safe_storage_path(save_dir, disk_name)
 
             # 保存文件
-            file.save(save_path)
+            file.save(str(save_path))
             # 更新用户存储空间
             customer.storage += file_size
-            db.session.commit()
             # 生成 UUID
             file_uuid = str(uuid.uuid4())
             # 计算文件的 MD5
@@ -71,7 +71,7 @@ class FileUploadResource(Resource):
                 uuid=file_uuid,
                 customer_id=user_id,
                 origin_filename=filename,
-                origin_filepath=os.path.abspath(save_path),  # 使用绝对路径
+                origin_filepath=str(save_path),
                 target_filepath='',  # 目标文件路径暂为空
                 status='none',  # 初始状态为 none
                 origin_filesize=file_size,
@@ -87,19 +87,26 @@ class FileUploadResource(Resource):
                 'filename': filename,
                 'uuid': file_uuid,
                 'translate_id': translate_record.id,
-                'save_path': os.path.abspath(save_path)  # 返回绝对路径
             })
 
+        except ValueError as e:
+            db.session.rollback()
+            return APIResponse.error(str(e), 400)
         except Exception as e:
             db.session.rollback()
+            if 'save_path' in locals() and save_path.exists():
+                save_path.unlink()
             current_app.logger.error(f"文件上传失败：{str(e)}")
             return APIResponse.error('文件上传失败', 500)
 
     @staticmethod
     def allowed_file(filename):
-        # """验证文件类型是否允许"""# 暂不支持PDF 'pdf',
-        ALLOWED_EXTENSIONS = {'docx', 'xlsx','pdf', 'pptx', 'txt', 'md', 'csv', 'xls', 'doc', 'html', 'htm'}
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        """验证文件类型是否允许。"""
+        return (
+            '.' in filename
+            and filename.rsplit('.', 1)[1].lower()
+            in current_app.config['ALLOWED_EXTENSIONS']
+        )
 
     @staticmethod
     def validate_file_size(file_stream):
@@ -162,6 +169,8 @@ class FileDeleteResource11(Resource):
             file_path = os.path.join(uploads_dir, translate.origin_filepath)
 
             # 删除物理文件
+            from app.result_storage import delete_result
+            delete_result(translate)
             if os.path.exists(file_path):
                 os.remove(file_path)
 
@@ -191,7 +200,11 @@ class FileDeleteResource(Resource):
 
         try:
             # 根据 UUID 查询翻译记录
-            translate_record = Translate.query.filter_by(uuid=data['uuid']).first()
+            translate_record = Translate.query.filter_by(
+                uuid=data['uuid'],
+                customer_id=get_jwt_identity(),
+                deleted_flag='N',
+            ).first()
             if not translate_record:
                 return APIResponse.error('文件记录不存在', 404)
 
@@ -199,11 +212,15 @@ class FileDeleteResource(Resource):
             file_path = translate_record.origin_filepath
 
             # 删除物理文件
+            from app.result_storage import delete_result
+            delete_result(translate_record)
             if os.path.exists(file_path):
                 os.remove(file_path)
                 # 更新用户存储空间
                 customer = Customer.query.get(get_jwt_identity())
-                customer.storage -= translate_record.origin_filesize
+                customer.storage = max(
+                    0, customer.storage - (translate_record.origin_filesize or 0)
+                )
             else:
                 current_app.logger.warning(f"文件不存在：{file_path}")
 

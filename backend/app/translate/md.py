@@ -20,6 +20,7 @@ from . import common
 
 # 分块配置
 MAX_CHUNK_SIZE = 2000
+PROTECTED_TOKEN_RE = re.compile(r'⟦[A-Z_]+_\d+⟧')
 
 
 @dataclass
@@ -60,14 +61,14 @@ def start(trans: Dict) -> bool:
         logging.info(f"[任务{translate_id}] 文件内容为空")
         with open(trans['target_file'], 'w', encoding='utf-8') as f:
             f.write("")
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     # 预处理：保护特殊语法
     processed_content, protected_blocks = _protect_special_syntax(content)
 
     # 智能分块
     texts = _smart_chunk_markdown(processed_content)
+    _validate_protected_token_assignment(texts, protected_blocks)
 
     # 统计需要翻译的块数
     to_translate_count = sum(1 for t in texts if not t.get('skip', False))
@@ -76,8 +77,7 @@ def start(trans: Dict) -> bool:
         logging.info(f"[任务{translate_id}] 没有需要翻译的内容")
         with open(trans['target_file'], 'w', encoding='utf-8') as f:
             f.write(content)
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     logging.info(
         f"[任务{translate_id}] 分割为 {len(texts)} 个块，其中 {to_translate_count} 个需要翻译")
@@ -98,8 +98,7 @@ def start(trans: Dict) -> bool:
 
     end_time = datetime.datetime.now()
     spend_time = common.display_spend(start_time, end_time)
-    to_translate.complete(trans, text_count, spend_time)
-    return True
+    return to_translate.complete(trans, text_count, spend_time)
 
 
 def _protect_special_syntax(content: str) -> Tuple[str, List[ProtectedBlock]]:
@@ -679,8 +678,22 @@ def _make_text_item(text: str, skip: bool = False, block_type: str = 'paragraph'
         'sub_index': sub_index,
         'sub_total': sub_total,
         'prefix': prefix,  # 用于标题的#前缀
-        'content_text': content_text  # 用于标题的实际内容
+        'content_text': content_text,  # 用于标题的实际内容
+        'protected_tokens': PROTECTED_TOKEN_RE.findall(text),
     }
+
+
+def _validate_protected_token_assignment(
+        texts: List[Dict], protected_blocks: List[ProtectedBlock]):
+    """确保分块没有拆断或丢失Markdown保护占位符。"""
+    expected = sorted(block.placeholder for block in protected_blocks)
+    assigned = sorted(
+        token
+        for item in texts
+        for token in item.get('protected_tokens', [])
+    )
+    if assigned != expected:
+        raise ValueError('Markdown分块破坏了受保护内容占位符')
 
 
 def _write_result(trans: Dict, texts: List[Dict], protected_blocks: List[ProtectedBlock]) -> int:

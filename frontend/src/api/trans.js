@@ -43,6 +43,38 @@ export function transalteFile(params) {
         data: params
     });
 }
+
+export function createTranslateBatch(params) {
+    return request({
+        url: '/api/translate/batches',
+        method: 'POST',
+        data: params,
+        headers: { 'Content-Type': 'application/json' },
+        transformRequest: [(data) => JSON.stringify(data)]
+    });
+}
+
+export function uploadTranslateBatchZip(data) {
+    return request({
+        url: '/api/translate/batches/zip',
+        method: 'POST',
+        data
+    });
+}
+
+export function getTranslateBatches() {
+    return request({
+        url: '/api/translate/batches',
+        method: 'GET'
+    });
+}
+
+export function getTranslateBatch(batchId) {
+    return request({
+        url: `/api/translate/batches/${batchId}`,
+        method: 'GET'
+    });
+}
 // 进度查询
 export function transalteProcess(params) {
     return request({

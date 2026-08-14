@@ -208,9 +208,9 @@ def get_file_extension(filepath: str) -> str:
 def is_supported_file(filepath: str) -> bool:
     """判断是否为支持的文件类型"""
     supported_extensions = [
-        '.docx', '.doc',
-        '.xlsx', '.xls',
-        '.pptx', '.ppt',
+        '.docx',
+        '.xlsx',
+        '.pptx',
         '.pdf',
         '.txt',
         '.csv',

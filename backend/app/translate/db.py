@@ -15,12 +15,28 @@ _ = load_dotenv(find_dotenv())
 _db_lock = Lock()
 
 
+def get_database_url(environ=None):
+    """Select the database URL for the active Flask environment."""
+    if environ is None:
+        environ = os.environ
+    flask_env = environ.get('FLASK_ENV', 'development').split('#', 1)[0].strip().lower()
+    variable_by_environment = {
+        'development': 'DEV_DATABASE_URL',
+        'production': 'PROD_DATABASE_URL',
+    }
+    variable_name = variable_by_environment.get(flask_env)
+    if not variable_name:
+        raise ValueError(f"Unsupported FLASK_ENV: {flask_env}")
+    db_url = environ.get(variable_name, '').split('#', 1)[0].strip()
+    if not db_url:
+        raise ValueError(f"Database URL not found: {variable_name}")
+    return db_url
+
+
 def get_conn():
     """获取数据库连接"""
     try:
-        db_url = os.environ.get('PROD_DATABASE_URL')
-        if not db_url:
-            raise ValueError("Database URL not found in environment variables.")
+        db_url = get_database_url()
 
         # SQLite
         if db_url.startswith('sqlite:///'):
@@ -52,6 +68,13 @@ def get_conn():
         raise
 
 
+def _adapt_sql(sql, conn):
+    """Adapt the legacy MySQL statements when isolated tests use SQLite."""
+    if isinstance(conn, sqlite3.Connection):
+        return sql.replace('%s', '?').replace('NOW()', 'CURRENT_TIMESTAMP')
+    return sql
+
+
 @contextmanager
 def get_connection():
     """上下文管理器获取连接"""
@@ -76,7 +99,7 @@ def execute(sql: str, *params) -> bool:
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(sql, params)
+                cursor.execute(_adapt_sql(sql, conn), params)
                 conn.commit()
                 cursor.close()
                 return True
@@ -96,7 +119,7 @@ def get(sql: str, *params) -> dict:
                 cursor = conn.cursor()
                 if isinstance(cursor, sqlite3.Cursor):
                     # SQLite
-                    cursor.execute(sql, params)
+                    cursor.execute(_adapt_sql(sql, conn), params)
                     row = cursor.fetchone()
                     if row:
                         columns = [desc[0] for desc in cursor.description]
@@ -122,7 +145,7 @@ def get_all(sql: str, *params) -> list:
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(sql, params)
+                cursor.execute(_adapt_sql(sql, conn), params)
                 results = cursor.fetchall()
                 cursor.close()
 

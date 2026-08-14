@@ -5,7 +5,11 @@ from app import db
 class FailedJob(db.Model):
     """ 失败任务记录表 """
     __tablename__ = 'failed_jobs'
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    id = db.Column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'),
+        primary_key=True,
+        autoincrement=True,
+    )
     uuid = db.Column(db.String(255), unique=True)                   # 任务UUID
     connection = db.Column(db.Text, nullable=False)                 # 连接信息
     queue = db.Column(db.Text, nullable=False)                      # 队列名称
@@ -31,7 +35,11 @@ class JobBatch(db.Model):
 class Job(db.Model):
     """ 队列任务表 """
     __tablename__ = 'jobs'
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    id = db.Column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'),
+        primary_key=True,
+        autoincrement=True,
+    )
     queue = db.Column(db.String(255), nullable=False)              # 队列名称
     payload = db.Column(db.Text, nullable=False)                   # 任务数据（JSON）
     attempts = db.Column(db.SmallInteger, nullable=False)          # 尝试次数

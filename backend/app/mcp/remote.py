@@ -500,6 +500,24 @@ async def admin_delete_translate(
         record = Translate.query.get(task_id)
         if not record:
             return {'error': '翻译记录不存在'}
+        from app.models.customer import Customer
+        from app.result_storage import delete_result
+
+        try:
+            delete_result(record)
+        except Exception as exc:
+            logger.error(
+                '管理员MCP删除翻译结果失败，任务ID=%s，错误类型=%s',
+                record.id,
+                type(exc).__name__,
+            )
+            return {'error': '结果文件删除失败'}
+        if record.customer_id:
+            customer = db.session.get(Customer, record.customer_id)
+            if customer:
+                customer.storage = max(
+                    0, customer.storage - (record.size or 0)
+                )
         db.session.delete(record)
         db.session.commit()
         return {'message': '记录删除成功'}

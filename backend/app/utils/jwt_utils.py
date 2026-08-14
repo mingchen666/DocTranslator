@@ -21,4 +21,12 @@ def configure_jwt_callbacks(jwt):
     def missing_token_callback(error):
         return APIResponse.unauthorized(message="Missing Authorization Header")
 
+    @jwt.token_verification_loader
+    def verify_token_role(jwt_header, jwt_payload):
+        return jwt_payload.get('role') in {'user', 'admin'}
+
+    @jwt.token_verification_failed_loader
+    def invalid_role_callback(jwt_header, jwt_payload):
+        return APIResponse.unauthorized(message="Token role is missing or invalid")
+
 

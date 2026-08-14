@@ -43,8 +43,7 @@ def start(trans: Dict[str, Any]) -> bool:
     if not texts:
         logging.info(f"[任务{translate_id}] Excel中没有需要翻译的内容")
         wb.save(trans['target_file'])
-        to_translate.complete(trans, 0, "0秒")
-        return True
+        return to_translate.complete(trans, 0, "0秒")
 
     logging.info(f"[任务{translate_id}] 提取到 {len(texts)} 个单元格需要翻译")
 
@@ -65,8 +64,7 @@ def start(trans: Dict[str, Any]) -> bool:
 
     end_time = datetime.datetime.now()
     spend_time = common.display_spend(start_time, end_time)
-    to_translate.complete(trans, text_count, spend_time)
-    return True
+    return to_translate.complete(trans, text_count, spend_time)
 
 
 def _extract_sheet_texts(ws: Worksheet, sheet_name: str, texts: List[Dict], cell_map: List[Dict]):
@@ -97,6 +95,8 @@ def _extract_sheet_texts(ws: Worksheet, sheet_name: str, texts: List[Dict], cell
                 continue
 
             value = cell.value
+            if cell.data_type == 'f':
+                continue
             if _should_translate(value):
                 text_item = {
                     'text': str(value),
@@ -126,6 +126,8 @@ def _should_translate(value) -> bool:
 
     text = str(value).strip()
     if not text:
+        return False
+    if text.startswith('='):
         return False
     if common.is_all_punc(text):
         return False

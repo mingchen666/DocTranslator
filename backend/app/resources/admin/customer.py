@@ -1,17 +1,16 @@
 # resources/admin/customer.py
 from flask import request
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required
 
 from app import db
 from app.models import Customer
-from app.utils.auth_tools import hash_password
+from app.utils.auth_tools import admin_required, hash_password
 from app.utils.response import APIResponse
 
 
 # 获取用户列表
 class AdminCustomerListResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('page', type=int, required=False, location='args')  # 可选，默认值为 1
@@ -32,7 +31,7 @@ class AdminCustomerListResource(Resource):
 
 # 更新用户状态
 class CustomerStatusResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self, id):
         # 解析请求体中的状态参数
         parser = reqparse.RequestParser()
@@ -60,7 +59,7 @@ class CustomerStatusResource(Resource):
 
 # 创建新用户
 class AdminCreateCustomerResource(Resource):
-    @jwt_required()
+    @admin_required
     def put(self):
         data = request.json
         required_fields = ['email', 'password']  # 'name',
@@ -86,7 +85,7 @@ class AdminCreateCustomerResource(Resource):
 
 # 获取用户信息
 class AdminCustomerDetailResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self, id):
         customer = Customer.query.get_or_404(id)
         return APIResponse.success({
@@ -103,7 +102,7 @@ class AdminCustomerDetailResource(Resource):
 
 # 编辑用户信息
 class AdminUpdateCustomerResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self, id):
         customer = Customer.query.get_or_404(id)
         data = request.json
@@ -125,7 +124,7 @@ class AdminUpdateCustomerResource(Resource):
 
 # 删除用户
 class AdminDeleteCustomerResource(Resource):
-    @jwt_required()
+    @admin_required
     def delete(self, id):
         customer = Customer.query.get_or_404(id)
         customer.deleted_flag = 'Y'

@@ -1,12 +1,12 @@
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required
 
 from app.models.prompt import Prompt
+from app.utils.auth_tools import admin_required
 from app.utils.response import APIResponse
 
 
 class AdminPromptListResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self):
         prompts = Prompt.query.filter_by(deleted_flag='N').order_by(Prompt.created_at.desc()).all()
         result = []

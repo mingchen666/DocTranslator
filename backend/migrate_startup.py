@@ -1,47 +1,90 @@
-import os
-import sys
 import logging
+from sqlalchemy import inspect, text
 
-logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 
-def run_startup():
+def _validate_recorded_revisions(app, versions):
+    if not versions:
+        return
+
+    from alembic.script import ScriptDirectory
+    from alembic.util import CommandError
+
+    extension = app.extensions['migrate']
+    config = extension.migrate.get_config(extension.directory)
+    script = ScriptDirectory.from_config(config)
+    unknown = []
+    for version in versions:
+        try:
+            script.get_revision(version)
+        except CommandError:
+            unknown.append(version)
+    if unknown:
+        raise RuntimeError(
+            '数据库包含未知 Alembic 版本: ' + ', '.join(unknown)
+        )
+
+
+def run_migrations(app=None, seed=True):
+    """Migrate one database and optionally insert idempotent application data."""
+    from flask_migrate import upgrade
     from app import create_app
-    app = create_app()
 
+    app = app or create_app()
     with app.app_context():
-        from flask_migrate import upgrade, stamp
-        from sqlalchemy import inspect
+        engine = app.extensions['migrate'].db.engine
+        inspector = inspect(engine)
+        table_names = set(inspector.get_table_names())
+        has_version_table = 'alembic_version' in table_names
 
-        inspector = inspect(app.extensions['migrate'].db.engine)
-        existing_tables = inspector.get_table_names()
+        with engine.connect() as connection:
+            versions = []
+            if has_version_table:
+                versions = [
+                    row[0] for row in connection.execute(
+                        text('SELECT version_num FROM alembic_version')
+                    ).fetchall()
+                ]
 
-        has_alembic = 'alembic_version' in existing_tables
-        has_translate = 'translate' in existing_tables
+        _validate_recorded_revisions(app, versions)
 
-        if not has_alembic and not has_translate:
-            logger.info("全新数据库，执行 init.sql 建表...")
-            from app.script.init_db import safe_init_mysql
-            safe_init_mysql(app, 'app/init.sql')
-
-            logger.info("标记迁移版本到最新...")
-            stamp()
-
-        elif not has_alembic and has_translate:
-            logger.info("数据库已有表但无迁移记录，标记初始版本...")
-            stamp(revision='001_initial')
-
-            logger.info("执行增量迁移...")
-            upgrade()
-
+        if not table_names - {'alembic_version'}:
+            logger.info('空数据库，执行完整 Alembic 基线')
         else:
-            logger.info("执行增量迁移...")
-            upgrade()
+            if not has_version_table or not versions:
+                logger.warning(
+                    '旧数据库未记录 Alembic 版本，将从基线补齐缺失结构'
+                )
+            else:
+                logger.info('数据库当前 Alembic 版本: %s', ', '.join(versions))
 
-    logger.info("数据库迁移完成")
+            # create_all is intentionally limited to missing tables. Existing
+            # tables and data remain untouched; Alembic owns column changes.
+            from app import models as _models  # noqa: F401
+            from app.extensions import db
+            db.create_all()
+
+        # The compatibility baseline skips existing tables and creates only
+        # missing ones, so unversioned legacy databases can safely upgrade
+        # from base instead of being stamped past required DDL.
+        upgrade()
+
+        if seed:
+            from app.script.insert_init_db import (
+                insert_admin_from_env,
+                insert_initial_data,
+                insert_initial_settings,
+            )
+            insert_initial_data(app)
+            insert_initial_settings(app)
+            insert_admin_from_env(app)
+
+    logger.info('数据库迁移完成')
     return app
 
 
 if __name__ == '__main__':
-    run_startup()
+    logging.basicConfig(level=logging.INFO)
+    run_migrations()

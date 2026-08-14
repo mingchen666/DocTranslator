@@ -1,14 +1,15 @@
 from flask import request
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity
 from app.extensions import db
 from app.models.mcp_api_key import McpApiKey
 from app.models.customer import Customer
+from app.utils.auth_tools import admin_required
 from app.utils.response import APIResponse
 
 
 class AdminMcpKeyListResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self):
         admin_id = get_jwt_identity()
         scope = request.args.get('scope', '')
@@ -38,7 +39,7 @@ class AdminMcpKeyListResource(Resource):
 
 
 class AdminMcpKeyCreateResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self):
         data = request.json
         admin_id = get_jwt_identity()
@@ -96,7 +97,7 @@ class AdminMcpKeyCreateResource(Resource):
 
 
 class AdminMcpKeyDetailResource(Resource):
-    @jwt_required()
+    @admin_required
     def get(self, id):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id, deleted_flag='N'
@@ -108,7 +109,7 @@ class AdminMcpKeyDetailResource(Resource):
         result['customer_email'] = customer.email if customer else ''
         return APIResponse.success(result)
 
-    @jwt_required()
+    @admin_required
     def post(self, id):
         data = request.json
         mcp_key = McpApiKey.query.filter_by(
@@ -132,7 +133,7 @@ class AdminMcpKeyDetailResource(Resource):
         result['customer_email'] = customer.email if customer else ''
         return APIResponse.success(result)
 
-    @jwt_required()
+    @admin_required
     def delete(self, id):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id, deleted_flag='N'
@@ -145,7 +146,7 @@ class AdminMcpKeyDetailResource(Resource):
 
 
 class AdminMcpKeyRegenerateResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self, id):
         mcp_key = McpApiKey.query.filter_by(
             key_prefix=id, deleted_flag='N'

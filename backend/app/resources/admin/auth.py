@@ -1,9 +1,14 @@
 # resources/admin/auth.py
 from flask import request, current_app
 from flask_restful import Resource
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, get_jwt_identity
 from app import db
 from app.models.user import User
+from app.utils.auth_tools import (
+    admin_required,
+    hash_password,
+    verify_legacy_password,
+)
 from app.utils.response import APIResponse
 
 
@@ -27,13 +32,22 @@ class AdminLoginResource(Resource):
                 current_app.logger.warning(f"用户不存在：{data['email']}")
                 return APIResponse.unauthorized('账号或密码错误')
 
-            # 直接比较明文密码
-            if admin.password != data['password']:
+            password_valid, needs_upgrade = verify_legacy_password(
+                admin.password, data['password']
+            )
+            if not password_valid:
                 current_app.logger.warning(f"密码错误：{data['email']}")
-                return APIResponse.error('账号或密码错误')
+                return APIResponse.unauthorized('账号或密码错误')
+
+            if needs_upgrade:
+                admin.password = hash_password(data['password'])
+                db.session.commit()
 
             # 生成JWT令牌
-            access_token = create_access_token(identity=str(admin.id))
+            access_token = create_access_token(
+                identity=str(admin.id),
+                additional_claims={'role': 'admin'},
+            )
             return APIResponse.success({
                 'token': access_token,
                 'email': admin.email,
@@ -46,7 +60,7 @@ class AdminLoginResource(Resource):
 
 
 class AdminChangePasswordResource(Resource):
-    @jwt_required()
+    @admin_required
     def post(self):
         """管理员修改邮箱和密码"""
         try:
@@ -64,7 +78,10 @@ class AdminChangePasswordResource(Resource):
                 return APIResponse.error('管理员不存在', 404)
 
             # 验证旧密码
-            if admin.password != data['old_password']:
+            password_valid, _ = verify_legacy_password(
+                admin.password, data['old_password']
+            )
+            if not password_valid:
                 return APIResponse.error(message='旧密码错误')
 
             # 更新邮箱（如果 user 不为空）
@@ -76,7 +93,7 @@ class AdminChangePasswordResource(Resource):
                 if data['new_password'] and data['confirm_password']:
                     if data['new_password'] != data['confirm_password']:
                         return APIResponse.error('新密码和确认密码不一致', 400)
-                    admin.password = data['new_password']  # 明文存储
+                    admin.password = hash_password(data['new_password'])
 
             # 保存到数据库
             db.session.commit()
