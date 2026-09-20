@@ -34,13 +34,17 @@ class MyComparisonListResource(Resource):
         # 解析 content 字段
         content_list = []
         if comparison.content:
-            for item in comparison.content.split('; '):
+            for item in comparison.content.split(';'):
+                item = item.strip()
                 if ':' in item:
                     origin, target = item.split(':', 1)
-                    content_list.append({
-                        'origin': origin.strip(),
-                        'target': target.strip()
-                    })
+                    origin = origin.strip()
+                    target = target.strip()
+                    if origin and target:
+                        content_list.append({
+                            'origin': origin,
+                            'target': target
+                        })
 
         # 返回格式化后的数据
         return {
@@ -348,7 +352,7 @@ class ImportComparisonResource(Resource):
             if not {'源术语', '目标术语'}.issubset(df.columns):
                 return APIResponse.error('文件格式不符合模板要求', 406)
             # 解析 Excel 文件内容
-            content = ';'.join(
+            content = '; '.join(
                 [f"{row['源术语']}: {row['目标术语']}" for _, row in df.iterrows()])  # 按 ': ' 分隔
             # 创建术语表
             comparison = Comparison(
@@ -389,7 +393,16 @@ class ExportComparisonResource(Resource):
             return {'message': '术语表未共享或无权限访问', 'code': 403}, 403
 
         # 解析术语内容
-        terms = [term.split(': ') for term in comparison.content.split(';')]  # 按 ': ' 分割
+        terms = []
+        for term in comparison.content.split(';'):
+            term = term.strip()
+            if ':' not in term:
+                continue
+            origin, target = term.split(':', 1)
+            origin = origin.strip()
+            target = target.strip()
+            if origin and target:
+                terms.append([origin, target])
         df = pd.DataFrame(terms, columns=['源术语', '目标术语'])
 
         # 创建 Excel 文件

@@ -394,10 +394,14 @@ def list_comparisons(customer_id: int) -> dict:
     for c in comparisons:
         content_list = []
         if c.content:
-            for item in c.content.split('; '):
+            for item in c.content.split(';'):
+                item = item.strip()
                 if ':' in item:
                     origin, target = item.split(':', 1)
-                    content_list.append({'origin': origin.strip(), 'target': target.strip()})
+                    origin = origin.strip()
+                    target = target.strip()
+                    if origin and target:
+                        content_list.append({'origin': origin, 'target': target})
         data.append({
             'id': c.id,
             'title': c.title,
