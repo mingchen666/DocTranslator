@@ -1243,5 +1243,107 @@ class BackendRepairTests(unittest.TestCase):
             db.session.commit()
 
 
+class TermMatchingTests(unittest.TestCase):
+    def test_pure_cjk_term_matches_adjacent_particles(self):
+        match = to_translate._is_term_matched_in_text
+        self.assertTrue(match('试验', '试验的数据表明该方法有效。'))
+        self.assertTrue(match('客户声音报告', '内部的客户声音报告显示增长。'))
+        self.assertTrue(match('客户声音报告', '的客户声音报告'))
+        self.assertTrue(match('试验', '这是试验，注意安全。'))
+
+    def test_pure_cjk_japanese_term_matches_adjacent_particles(self):
+        match = to_translate._is_term_matched_in_text
+        self.assertTrue(match('機械学習', '機械学習のモデル'))
+        self.assertTrue(match('機械学習', '先進的な機械学習'))
+        self.assertTrue(match('データ', 'このデータを分析する'))
+
+    def test_pure_cjk_term_still_matches_punctuation_boundaries(self):
+        self.assertTrue(
+            to_translate._is_term_matched_in_text('大家好', '大家好。')
+        )
+
+    def test_pure_cjk_term_absent_text_not_matched(self):
+        match = to_translate._is_term_matched_in_text
+        self.assertFalse(match('试验', '没有任何相关词汇'))
+        self.assertFalse(match('数据库', 'The database is large.'))
+        self.assertFalse(match('', '任意文本'))
+        self.assertFalse(match('试验', ''))
+
+    def test_non_cjk_terms_keep_original_strategies(self):
+        match = to_translate._is_term_matched_in_text
+        self.assertTrue(match('database', 'The database is large.'))
+        self.assertFalse(match('database', 'The databases are large.'))
+        self.assertTrue(match('API接口', '使用API接口进行调用'))
+
+    def _inject(self, term_pairs, text):
+        trans = {
+            'terms_dict': [
+                {'source': source, 'target': target}
+                for source, target in term_pairs
+            ]
+        }
+        return to_translate._inject_matched_terms(
+            trans, text, '请将以下文本翻译成{target_lang}：', '日语'
+        )
+
+    def test_cjk_short_term_fully_covered_by_longer_term_dropped(self):
+        prompt = self._inject(
+            [('人工', 'マニュアル'), ('人工智能', '人工知能')],
+            '人工智能正在改变世界。',
+        )
+        self.assertIn('人工智能 → 人工知能', prompt)
+        self.assertNotIn('人工 → マニュアル', prompt)
+
+    def test_cjk_short_term_with_independent_hit_kept(self):
+        prompt = self._inject(
+            [('人工', 'マニュアル'), ('人工智能', '人工知能')],
+            '人工智能与人工审核流程。',
+        )
+        self.assertIn('人工智能 → 人工知能', prompt)
+        self.assertIn('人工 → マニュアル', prompt)
+
+    def test_cjk_nested_terms_keep_longest_only(self):
+        prompt = self._inject(
+            [('智能', 'A'), ('人工智能', 'B'), ('人工智能芯片', 'C')],
+            '人工智能芯片发布了。',
+        )
+        self.assertIn('人工智能芯片 → C', prompt)
+        self.assertNotIn('人工智能 → B', prompt)
+        self.assertNotIn('智能 → A', prompt)
+
+    def test_japanese_nested_terms_keep_longest_only(self):
+        prompt = self._inject(
+            [('データ', 'A'), ('データベース', 'B')],
+            'データベースを更新する。',
+        )
+        self.assertIn('データベース → B', prompt)
+        self.assertNotIn('データ → A', prompt)
+
+    def test_japanese_short_term_with_independent_hit_kept(self):
+        prompt = self._inject(
+            [('データ', 'A'), ('データベース', 'B')],
+            'データベースとデータを分析する。',
+        )
+        self.assertIn('データベース → B', prompt)
+        self.assertIn('データ → A', prompt)
+
+    def test_cjk_particle_fix_survives_term_filter(self):
+        prompt = self._inject(
+            [('试验', 'テスト')],
+            '试验的数据表明该方法有效。',
+        )
+        self.assertIn('试验 → テスト', prompt)
+
+    def test_injected_terms_sorted_longest_first(self):
+        prompt = self._inject(
+            [('database', '数据库'), ('database field', '数据库字段')],
+            'The database field is large.',
+        )
+        self.assertLess(
+            prompt.index('database field → 数据库字段'),
+            prompt.index('database → 数据库'),
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

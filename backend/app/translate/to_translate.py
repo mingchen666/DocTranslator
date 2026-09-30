@@ -15,6 +15,9 @@ MAX_RETRIES = 3
 RETRY_DELAY = 5  # 秒
 PROTECTED_TOKEN_RE = re.compile(r'⟦[A-Z_]+_\d+⟧')
 
+# 纯CJK术语（汉字/假名）：中日文没有“词边界”概念，须用子串匹配
+PURE_CJK_TERM_RE = re.compile(r'^[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff]+$')
+
 # 进度更新锁
 _progress_lock = Lock()
 
@@ -475,35 +478,76 @@ def _translate_baidu(trans, text):
 def _inject_matched_terms(trans, text, base_prompt, target_lang):
     """
     动态匹配术语并注入prompt
-    使用正则表达式精确匹配术语（单词边界）
+    纯CJK术语采用子串匹配；命中位置级别按“最长匹配优先”剔除被覆盖的短术语
     """
     terms_dict = trans.get('terms_dict')
     if not terms_dict:
         logging.debug("无术语库数据，跳过术语匹配")
         return base_prompt.replace("{target_lang}", target_lang)
 
-    matched_terms = []
-
-
+    matched_pairs = []
     for term_pair in terms_dict:
         source_term = term_pair['source']
         target_term = term_pair['target']
 
         if _is_term_matched_in_text(source_term, text):
-            matched_terms.append(f"{source_term} → {target_term}")
+            matched_pairs.append((source_term, target_term))
             logging.debug(f"匹配到术语: {source_term} → {target_term}")
 
+    matched_pairs = _drop_covered_cjk_terms(matched_pairs, text)
+
     # 构建最终prompt
-    if matched_terms:
-        # 去重（防止重复术语）
-        unique_terms = list(dict.fromkeys(matched_terms))
-        terms_section = "【术语翻译对照表如下】\n" + "\n".join(unique_terms)
+    if matched_pairs:
+        # 去重（防止重复术语）并按术语长度降序，词中词时更长更具体的术语排在前面
+        unique_pairs = list(dict.fromkeys(matched_pairs))
+        unique_pairs.sort(key=lambda pair: len(pair[0]), reverse=True)
+        terms_section = (
+            "【术语翻译对照表如下，术语相互重叠时优先应用更长的术语】\n"
+            + "\n".join(f"{source} → {target}" for source, target in unique_pairs)
+        )
         full_prompt = f"{terms_section}\n\n{base_prompt}"
     else:
         full_prompt = base_prompt
         logging.debug("当前文本无匹配术语")
 
     return full_prompt.replace("{target_lang}", target_lang)
+
+
+def _drop_covered_cjk_terms(matched_pairs, text):
+    """
+    词中词处理：短术语的所有命中位置都被更长术语的命中覆盖时剔除该短术语，
+    防止其映射被套用到长术语内部（如“人工”的映射套用到“人工智能”）。
+    若短术语存在任一独立命中（不被更长术语覆盖），则保留。
+    仅处理纯CJK术语（子串匹配引入的重叠），非CJK术语保持原有边界语义。
+    """
+    cjk_sources = {source for source, _ in matched_pairs
+                   if PURE_CJK_TERM_RE.fullmatch(source)}
+    if len(cjk_sources) < 2:
+        return matched_pairs
+
+    covered_sources = set()
+    consumed_spans = []
+    for source in sorted(cjk_sources, key=len, reverse=True):
+        occurrences = [
+            match.span() for match in re.finditer(re.escape(source), text)
+        ]
+        if all(_span_covered(span, consumed_spans) for span in occurrences):
+            covered_sources.add(source)
+            continue
+        consumed_spans.extend(occurrences)
+
+    if not covered_sources:
+        return matched_pairs
+    logging.debug(f"词中词剔除被覆盖的短术语: {sorted(covered_sources)}")
+    return [(source, target) for source, target in matched_pairs
+            if source not in covered_sources]
+
+
+def _span_covered(span, spans):
+    """判断区间span是否被spans中任一区间完全包含"""
+    start, end = span
+    return any(covered_start <= start and end <= covered_end
+               for covered_start, covered_end in spans)
 
 
 def _is_term_matched_in_text(source_term, text):
@@ -517,6 +561,11 @@ def _is_term_matched_in_text(source_term, text):
     source_term = source_term.strip()
     if not source_term:
         return False
+
+    # 纯CJK术语（汉字/假名）直接子串匹配：
+    # \b与标点边界会把粘连的助词（的/の等）当作词内字符，导致术语漏配
+    if PURE_CJK_TERM_RE.fullmatch(source_term):
+        return source_term in text
 
     # 策略1：单词边界匹配（适用于英文单词）
     if _is_word_boundary_match(source_term, text):
