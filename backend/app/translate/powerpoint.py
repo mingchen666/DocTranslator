@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from threading import Event
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from lxml import etree
 from pptx import Presentation
@@ -29,6 +29,19 @@ from .pptx_inline import InlinePlan, TOKEN_RE, build_inline_plan
 MIN_FONT_SCALE = 0.6
 MIN_FONT_POINTS = 10.0
 REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+
+# 备注页与图表文本不参与形状映射，用独立的 location_type 标记并单独写回。
+EXTRA_LOCATION_TYPES = ('notes', 'chart_text', 'chart_node')
+
+CHART_NS = {'c': 'http://schemas.openxmlformats.org/drawingml/2006/chart'}
+
+# 图表的系列名与分类名存放于 drawingml 缓存节点，需要单独翻译。
+CHART_NAME_NODE_PATHS = (
+    './/c:ser/c:tx//c:v',
+    './/c:cat//c:strCache/c:pt/c:v',
+    './/c:cat//c:multiLvlStrRef//c:v',
+    './/c:cat//c:strLit/c:pt/c:v',
+)
 
 
 class ElementType(Enum):
@@ -78,6 +91,9 @@ class TextBlock:
     count: int = 0
     inline_plan: Optional[InlinePlan] = None
     fallback_used: bool = False
+    # 备注页/图表文本直接持有可写目标，不经过形状映射
+    target_getter: Optional[Callable[[], Any]] = None
+    target_setter: Optional[Callable[[str], None]] = None
 
 
 def start(trans: Dict[str, Any]) -> bool:
@@ -124,11 +140,23 @@ def start(trans: Dict[str, Any]) -> bool:
         return False
     _sync_translation_results(blocks_to_translate, texts)
 
+    structure_blocks = [
+        block for block in all_blocks
+        if block.location_type not in EXTRA_LOCATION_TYPES
+    ]
+    extra_blocks = [
+        block for block in all_blocks
+        if block.location_type in EXTRA_LOCATION_TYPES
+    ]
+    # 备注页与图表文本不参与形状映射，先写回，双语模式下译文页会继承该结果
+    extra_text_count = _apply_extra_blocks(extra_blocks, target_lang)
+
     try:
         if is_bilingual:
-            text_count = _apply_bilingual_mode(prs, all_blocks, target_lang)
+            text_count = _apply_bilingual_mode(prs, structure_blocks, target_lang)
         else:
-            text_count = _apply_translation_mode(prs, all_blocks, target_lang)
+            text_count = _apply_translation_mode(prs, structure_blocks, target_lang)
+        text_count += extra_text_count
         _save_and_validate_presentation(
             prs, trans['target_file'], baseline, is_bilingual=is_bilingual
         )
@@ -154,6 +182,8 @@ def _extract_all_blocks(prs: Presentation) -> List[TextBlock]:
     for slide_index, slide in enumerate(prs.slides):
         for shape in slide.shapes:
             blocks.extend(_extract_shape_blocks(shape, slide_index, next_uid))
+        blocks.extend(_extract_notes_blocks(slide, slide_index, next_uid))
+        blocks.extend(_extract_chart_blocks(slide, slide_index, next_uid))
     return blocks
 
 
@@ -331,7 +361,16 @@ def _blocks_to_api_format(blocks: List[TextBlock]) -> List[Dict[str, Any]]:
     texts = []
     for block in blocks:
         if block.inline_plan is None:
-            raise ValueError('PPTX文本块缺少行内计划')
+            # 图表系列名/分类名等纯 XML 文本节点：直接送原文翻译
+            texts.append({
+                'text': block.original_text,
+                'original': block.original_text,
+                'count_text': block.original_text,
+                'complete': False,
+                'count': 0,
+                '_uid': block.uid,
+            })
+            continue
         item = {
             'text': block.inline_plan.payload,
             'original': block.original_text,
@@ -917,3 +956,225 @@ def _remove_invalid_output(target_file: Optional[str]):
         os.remove(target_file)
     except OSError:
         logging.warning('删除无效PPTX输出失败: %s', target_file)
+
+
+# ========================= 备注页 / 图表文本 =========================
+# 现有实现只覆盖普通形状、占位符、组合形状与表格；备注页与图表内部文字
+# （图表标题、坐标轴标题、系列名、分类名）既不提取也不写回。以下函数把它们
+# 作为附加文本块接入同一套行内计划与翻译流程，并在写回阶段单独处理。
+
+def _has_visible_text(text: Optional[str]) -> bool:
+    if text is None:
+        return False
+    return any(not char.isspace() for char in str(text))
+
+
+def _iter_shapes_recursive(shapes) -> Iterable[BaseShape]:
+    for shape in shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from _iter_shapes_recursive(shape.shapes)
+            continue
+        yield shape
+
+
+def _make_paragraph_block(
+    paragraph: _Paragraph,
+    slide_index: int,
+    shape_id: int,
+    location_type: str,
+    paragraph_index: int,
+    next_uid,
+) -> Optional[TextBlock]:
+    plan = build_inline_plan(paragraph)
+    if not plan.original_text or not plan.original_text.strip() or not plan.spans:
+        return None
+    return TextBlock(
+        uid=next_uid(),
+        slide_index=slide_index,
+        shape_id=shape_id,
+        element_type=ElementType.OTHER,
+        location_type=location_type,
+        paragraph_index=paragraph_index,
+        original_text=plan.original_text,
+        skip=not _should_translate(plan.original_text),
+        inline_plan=plan,
+        target_getter=lambda paragraph=paragraph: paragraph,
+    )
+
+
+def _extract_notes_blocks(slide, slide_index: int, next_uid) -> List[TextBlock]:
+    """Extract speaker notes. Accessing notes_slide creates one, so guard by has_notes_slide."""
+    blocks: List[TextBlock] = []
+    try:
+        if not slide.has_notes_slide:
+            return blocks
+        notes_slide = slide.notes_slide
+        text_frame = notes_slide.notes_text_frame if notes_slide is not None else None
+    except Exception as exc:  # 备注页损坏时不影响正文翻译
+        logging.warning('PPTX备注页不可访问，已跳过: %s', exc)
+        return blocks
+    if text_frame is None:
+        return blocks
+
+    for paragraph_index, paragraph in enumerate(text_frame.paragraphs):
+        block = _make_paragraph_block(
+            paragraph, slide_index, -1, 'notes', paragraph_index, next_uid
+        )
+        if block is not None:
+            blocks.append(block)
+    return blocks
+
+
+def _extract_chart_blocks(slide, slide_index: int, next_uid) -> List[TextBlock]:
+    blocks: List[TextBlock] = []
+    for shape in _iter_shapes_recursive(slide.shapes):
+        if not _is_chart(shape):
+            continue
+        try:
+            chart = shape.chart
+        except Exception as exc:  # 图表对象异常时跳过，保留形状本身
+            logging.warning('PPTX图表不可访问，已跳过: %s', exc)
+            continue
+        blocks.extend(
+            _extract_chart_title_blocks(chart, slide_index, shape.shape_id, next_uid)
+        )
+        blocks.extend(
+            _extract_chart_name_blocks(chart, slide_index, shape.shape_id, next_uid)
+        )
+    return blocks
+
+
+def _chart_title_text_frames(chart) -> List[TextFrame]:
+    frames: List[TextFrame] = []
+    try:
+        if chart.has_title and chart.chart_title is not None:
+            frames.append(chart.chart_title.text_frame)
+    except Exception:
+        pass
+    for axis_name in ('category_axis', 'value_axis', 'series_axis'):
+        try:
+            axis = getattr(chart, axis_name)
+        except Exception:
+            continue
+        if axis is None:
+            continue
+        try:
+            if axis.has_title and axis.axis_title is not None:
+                frames.append(axis.axis_title.text_frame)
+        except Exception:
+            continue
+    return frames
+
+
+def _extract_chart_title_blocks(
+    chart, slide_index: int, shape_id: int, next_uid
+) -> List[TextBlock]:
+    """Chart and axis titles are ordinary text frames, so they keep the inline plan path."""
+    blocks: List[TextBlock] = []
+    for text_frame in _chart_title_text_frames(chart):
+        for paragraph_index, paragraph in enumerate(text_frame.paragraphs):
+            block = _make_paragraph_block(
+                paragraph, slide_index, shape_id, 'chart_text', paragraph_index, next_uid
+            )
+            if block is not None:
+                blocks.append(block)
+    return blocks
+
+
+def _extract_chart_name_blocks(
+    chart, slide_index: int, shape_id: int, next_uid
+) -> List[TextBlock]:
+    """Series and category names live in drawingml caches; equal labels are merged.
+
+    The same category label is repeated for every series, so grouping by text keeps
+    one translation per distinct label while still updating every occurrence.
+    """
+    element = getattr(chart, '_element', None)
+    if element is None:
+        return []
+
+    grouped: Dict[str, List[Any]] = {}
+    for path in CHART_NAME_NODE_PATHS:
+        for node in element.findall(path, CHART_NS):
+            text = node.text or ''
+            if not text.strip():
+                continue
+            grouped.setdefault(text, []).append(node)
+
+    blocks: List[TextBlock] = []
+    for text, nodes in grouped.items():
+        blocks.append(TextBlock(
+            uid=next_uid(),
+            slide_index=slide_index,
+            shape_id=shape_id,
+            element_type=ElementType.OTHER,
+            location_type='chart_node',
+            original_text=text,
+            skip=not _should_translate(text),
+            target_setter=_make_chart_name_setter(nodes),
+        ))
+    return blocks
+
+
+def _make_chart_name_setter(nodes: List[Any]) -> Callable[[str], None]:
+    def apply_name(value: str):
+        for node in nodes:
+            node.text = value
+
+    return apply_name
+
+
+def _write_plain_paragraph(paragraph: _Paragraph, text: str):
+    """Write the whole text into the first run so paragraph formatting survives."""
+    runs = [run for run in paragraph.runs if _has_visible_text(run.text)]
+    if not runs:
+        paragraph.add_run().text = text
+        return
+    runs[0].text = text
+    for run in runs[1:]:
+        run.text = ''
+
+
+def _apply_extra_blocks(blocks: List[TextBlock], target_lang: str) -> int:
+    """Write note pages and chart text back; empty results keep the source text."""
+    text_count = 0
+    empty_fallbacks = 0
+    for block in blocks:
+        if block.skip:
+            continue
+        translated = block.translated_text
+        if not _has_visible_text(translated):
+            translated = block.original_text
+            block.fallback_used = True
+            empty_fallbacks += 1
+        try:
+            if block.inline_plan is None:
+                if block.target_setter is not None:
+                    block.target_setter(translated)
+                text_count += block.count
+                continue
+
+            paragraph = block.target_getter() if block.target_getter else None
+            if paragraph is None:
+                continue
+            target_plan = build_inline_plan(paragraph)
+            if block.inline_plan.compatible_with(target_plan):
+                target_plan.apply(translated, block.fallback_used)
+                _ensure_plan_font_compatibility(target_plan, target_lang)
+            else:
+                # 结构不一致时退化为纯文本写回，避免把保护标记留在文档里
+                logging.warning(
+                    'PPTX备注页/图表文本结构与源不一致，回退纯文本写回: %s',
+                    block.original_text[:30],
+                )
+                _write_plain_paragraph(
+                    paragraph, block.inline_plan.plain_translation(translated)
+                )
+            text_count += block.count
+        except Exception as exc:
+            logging.warning(
+                'PPTX备注页/图表文本写回失败(%s): %s', block.location_type, exc
+            )
+    if empty_fallbacks:
+        logging.info('PPTX备注页/图表空译文回退原文: %s 处', empty_fallbacks)
+    return text_count
