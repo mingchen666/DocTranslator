@@ -23,6 +23,21 @@ _progress_lock = Lock()
 
 _last_reported_progress = {}  # 存储每个任务的上次报告进度 {task_id: progress}
 
+# 思考型模型（deepseek-r1、qwen3 等）会在正文前后输出推理片段，必须剥离。
+REASONING_BLOCK_RE = re.compile(
+    r'<(think|thinking|reasoning)>.*?</\1>', re.DOTALL | re.IGNORECASE
+)
+REASONING_TAG_RE = re.compile(r'</?(think|thinking|reasoning)>', re.IGNORECASE)
+
+
+def _strip_reasoning(content):
+    """Remove <think>…</think> style reasoning; unclosed tags are dropped too."""
+    if not content:
+        return content
+    cleaned = REASONING_BLOCK_RE.sub('', str(content))
+    cleaned = REASONING_TAG_RE.sub('', cleaned)
+    return cleaned.strip()
+
 
 def update_progress(texts, translate_id, force_update=False):
     """
@@ -380,8 +395,15 @@ def _try_translate_with_retries(trans, text_item, model):
                 time.sleep(RETRY_DELAY)
                 continue
 
-            # 过滤deepseek思考标签
-            translated = re.sub(r'', '', translated, flags=re.DOTALL).strip()
+            # Drop reasoning segments; an empty result is treated as an invalid answer.
+            translated = _strip_reasoning(translated)
+            if not _is_valid_translation(translated):
+                text_item['_last_validation_error'] = 'content'
+                logging.warning(
+                    f"[任务{translate_id}] 过滤思考过程后译文为空，第{attempt}次请求重试"
+                )
+                time.sleep(RETRY_DELAY)
+                continue
 
             return {
                 'translated_text': translated,
