@@ -168,5 +168,49 @@ class TranslationQualityTests(unittest.TestCase):
         self.assertEqual(translate_openai.call_count, to_translate.MAX_RETRIES)
 
 
+class ReasoningContentTests(unittest.TestCase):
+    """思考模型返回的 <think>…</think> 不能进入译文。"""
+
+    def test_reasoning_block_is_removed_from_translation(self):
+        self.assertEqual(
+            to_translate._strip_reasoning('<think>let me plan</think>Bonjour'),
+            'Bonjour',
+        )
+
+    def test_multiline_reasoning_block_is_removed(self):
+        content = '<think>\n第一行推理\n第二行推理\n</think>\nBonjour le monde'
+        self.assertEqual(to_translate._strip_reasoning(content), 'Bonjour le monde')
+
+    def test_unclosed_reasoning_tag_is_removed(self):
+        cleaned = to_translate._strip_reasoning('Bonjour le monde</think>')
+        self.assertNotIn('think', cleaned)
+        self.assertEqual(cleaned.strip(), 'Bonjour le monde')
+
+    @patch('app.translate.to_translate.time.sleep')
+    @patch('app.translate.to_translate._translate_openai')
+    def test_reasoning_only_response_is_retried(self, translate_openai, sleep):
+        translate_openai.side_effect = ['<think>only reasoning</think>', 'Bonjour']
+        result = to_translate._try_translate_with_retries(
+            {'id': 1, 'server': 'openai'},
+            {'text': 'Hello world', 'count_text': 'Hello world'},
+            'model',
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result['translated_text'], 'Bonjour')
+        self.assertEqual(translate_openai.call_count, 2)
+
+    @patch('app.translate.to_translate.time.sleep')
+    @patch('app.translate.to_translate._translate_openai')
+    def test_reasoning_only_response_exhausts_retries(self, translate_openai, sleep):
+        translate_openai.return_value = '<think>only reasoning</think>'
+        result = to_translate._try_translate_with_retries(
+            {'id': 1, 'server': 'openai'},
+            {'text': 'Hello world', 'count_text': 'Hello world'},
+            'model',
+        )
+        self.assertIsNone(result)
+        self.assertEqual(translate_openai.call_count, to_translate.MAX_RETRIES)
+
+
 if __name__ == '__main__':
     unittest.main()
