@@ -14,6 +14,7 @@ import zhLocale from 'element-plus/es/locale/lang/zh-cn'
 
 import { createPinia } from 'pinia';
 import { createPersistedState } from 'pinia-plugin-persistedstate';
+import { loadSiteConfig } from './utils/siteConfig'
 
 const pinia = createPinia()
 const app=createApp(App)
@@ -27,4 +28,8 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 pinia.use(createPersistedState())
 app.use(pinia)
-app.mount("#app")
+
+// 先读取站点域名配置，再挂载页面，确保所有业务请求都走正确的地址。
+loadSiteConfig().finally(() => {
+  app.mount("#app")
+})

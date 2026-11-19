@@ -10,6 +10,16 @@ from app.models import Setting
 from app.utils.auth_tools import admin_required
 from app.utils.file_security import safe_storage_path
 from app.utils.response import APIResponse
+from app.utils.site_domain import (
+    DOMAIN_MODE_AUTO,
+    DOMAIN_MODE_MANUAL,
+    DOMAIN_MODES,
+    DomainValidationError,
+    get_site_domain_config,
+    normalize_project_domain,
+    save_site_domain_config,
+    site_config_payload,
+)
 from app.utils.validators import validate_id_list
 
 
@@ -106,26 +116,76 @@ class AdminEditSettingOtherResource(Resource):
 class AdminSettingSiteResource(Resource):
     @admin_required
     def get(self):
-        """获取站点设置"""
-        setting = Setting.query.filter_by(alias='version').first()
-        if not setting:
-            return APIResponse.success(data={'version': 'community'})
-        return APIResponse.success(data={'version': setting.value})
+        """获取站点设置（版本 + 项目域名）"""
+        version_setting = Setting.query.filter_by(alias='version').first()
+        data = {
+            'version': version_setting.value if version_setting else 'community',
+        }
+        data.update(site_config_payload())
+        return APIResponse.success(data=data)
 
     @admin_required
     def post(self):
-        """更新站点版本"""
-        version = request.json.get('version')
-        if not version or version not in ['business', 'community']:
+        """更新站点版本与项目域名配置。
+
+        兼容旧客户端：只传 version 时仍然只更新版本，不会创建域名配置行，
+        升级站点因此保持原有行为。
+        """
+        data = request.get_json(silent=True) or {}
+        if not data:
+            return APIResponse.error('缺少必要参数', 400)
+
+        version = data.get('version')
+        if version is not None and version not in ['business', 'community']:
             return APIResponse.error('版本号无效', 400)
 
-        setting = Setting.query.filter_by(alias='version').first()
-        if not setting:
-            setting = Setting(alias='version', group='site_setting')
-        setting.value = version
-        db.session.add(setting)
-        db.session.commit()
-        return APIResponse.success(message='站点版本已更新')
+        domain_mode = data.get('domain_mode')
+        if domain_mode is not None and domain_mode not in DOMAIN_MODES:
+            return APIResponse.error('域名模式无效', 400)
+
+        current = get_site_domain_config()
+        target_mode = domain_mode if domain_mode is not None else current['domain_mode']
+        domain_value = data.get('domain', current['domain'])
+        domain_value = '' if domain_value is None else str(domain_value).strip()
+
+        if target_mode == DOMAIN_MODE_MANUAL:
+            try:
+                domain_value = normalize_project_domain(domain_value)
+            except DomainValidationError as exc:
+                return APIResponse.error(str(exc), 400)
+        elif target_mode == DOMAIN_MODE_AUTO and domain_value:
+            # 自动模式下保留用户填写的备用地址，但仍然校验格式。
+            try:
+                domain_value = normalize_project_domain(domain_value)
+            except DomainValidationError as exc:
+                return APIResponse.error(str(exc), 400)
+
+        try:
+            if version is not None:
+                version_setting = Setting.query.filter_by(alias='version').first()
+                if version_setting is None:
+                    version_setting = Setting(alias='version', group='site_setting')
+                version_setting.value = version
+                version_setting.group = 'site_setting'
+                db.session.add(version_setting)
+
+            if domain_mode is not None or data.get('domain') is not None:
+                save_site_domain_config(
+                    domain_mode=domain_mode,
+                    domain=domain_value,
+                )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        if version is None:
+            version_setting = Setting.query.filter_by(alias='version').first()
+            version = version_setting.value if version_setting else 'community'
+
+        payload = {'version': version}
+        payload.update(site_config_payload())
+        return APIResponse.success(data=payload, message='站点设置已更新')
 
 
 # ----系统存储设置-----

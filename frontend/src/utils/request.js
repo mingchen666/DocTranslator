@@ -3,13 +3,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import router from '@/router'
 import { useUserStore } from '@/store/user'
 import Qs from 'qs'
+import { getApiPrefix } from '@/utils/siteConfig'
 // import router from '@/router'
 // import i18n from '@/lang/index' // i18n 国际化
 
 // create an axios instance
 const service = axios.create({
   baseURL: '/api', //  import.meta.env.VITE_API_URL   url = base url + request url
-  withCredentials: true, // send cookies when cross-domain requests
+  // 认证走 token 请求头，不依赖 Cookie；手动域名模式下跨源请求因此无需凭据模式。
+  withCredentials: false,
   crossDomain: true,
   timeout: 30000, // request timeout
   transformRequest: [function(data) {
@@ -33,6 +35,8 @@ const service = axios.create({
 // request interceptor
 service.interceptors.request.use(
   config => {
+    // 每次请求都读取当前站点域名配置：自动模式为相对 /api，手动模式为固定地址。
+    config.baseURL = getApiPrefix()
     const userStore = useUserStore()
     config.headers['token'] = userStore.token;
     config.headers['credentials']='include'

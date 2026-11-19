@@ -26,7 +26,8 @@ from app.resources.api.files import FileUploadResource, FileDeleteResource
 from app.resources.api.prompt import MyPromptListResource, SharedPromptListResource, \
     EditPromptResource, SharePromptResource, CopyPromptResource, FavoritePromptResource, \
     CreatePromptResource, DeletePromptResource
-from app.resources.api.setting import SystemVersionResource, SystemSettingsResource
+from app.resources.api.setting import SystemVersionResource, SystemSettingsResource, \
+    SiteConfigResource
 from app.resources.api.translate import TranslateListResource, TranslateSettingResource, \
     TranslateProcessResource, TranslateDeleteResource, TranslateDownloadResource, \
     OpenAICheckResource, PDFCheckResource, TranslateTestResource, TranslateDeleteAllResource, \
@@ -106,6 +107,7 @@ def register_routes(api):
 
     api.add_resource(SystemVersionResource, '/api/common/version')
     api.add_resource(SystemSettingsResource, '/api/common/all_settings')
+    api.add_resource(SiteConfigResource, '/api/common/site-config')
 
     api.add_resource(MyPromptListResource, '/api/prompt/my')
     api.add_resource(SharedPromptListResource, '/api/prompt/share')

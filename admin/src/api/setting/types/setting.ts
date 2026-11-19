@@ -21,8 +21,17 @@ export type GetOtherSettingResponseData = ApiResponseData<OtherSetting>
 
 export interface SiteSetting {
   version: string,
+  domain_mode: "legacy" | "auto" | "manual",
+  domain: string,
 }
 
-export type GetSiteSettingResponseData = ApiResponseData<SiteSetting>
+export interface SiteSettingResponse extends SiteSetting {
+  legacy: boolean,
+  configured: boolean,
+  project_url: string | null,
+  api_prefix: string | null,
+}
+
+export type GetSiteSettingResponseData = ApiResponseData<SiteSettingResponse>
 
 export type SettingNoResponseData=ApiResponseData<[]>

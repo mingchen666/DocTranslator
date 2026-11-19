@@ -8,6 +8,7 @@ import "@/router/permission"
 import { loadSvg } from "@/icons"
 import { loadPlugins } from "@/plugins"
 import { loadDirectives } from "@/directives"
+import { loadSiteConfig } from "@/utils/siteConfig"
 // css
 import "uno.css"
 import "normalize.css"
@@ -27,6 +28,10 @@ loadSvg(app)
 loadDirectives(app)
 
 app.use(store).use(router)
-router.isReady().then(() => {
-  app.mount("#app")
+
+// 先读取站点域名配置，再挂载页面，确保所有业务请求都走正确的地址。
+loadSiteConfig().finally(() => {
+  router.isReady().then(() => {
+    app.mount("#app")
+  })
 })

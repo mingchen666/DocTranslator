@@ -1,7 +1,9 @@
 # resources/system.py
+from flask import current_app, jsonify, make_response
 from flask_restful import Resource
+
 from app.utils.response import APIResponse
-from flask import current_app
+from app.utils.site_domain import site_config_payload
 
 
 class SystemVersionResource(Resource):
@@ -27,3 +29,15 @@ class SystemSettingsResource(Resource):
             },
             'message': 'success'
         })
+
+
+class SiteConfigResource(Resource):
+    """公开的站点域名配置，供前台/管理端启动时读取。"""
+
+    def get(self):
+        payload, status = APIResponse.success(site_config_payload())
+        response = make_response(jsonify(payload), status)
+        # 配置随时可能被管理员修改，不能让浏览器/代理缓存旧值。
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        return response

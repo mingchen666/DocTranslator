@@ -6,7 +6,8 @@ import { type GetTranslateData } from "@/api/translate/types/translate"
 import { type FormInstance, ElMessage, ElMessageBox } from "element-plus"
 import { Search, Refresh, Download, Delete } from "@element-plus/icons-vue"
 import { usePagination } from "@/hooks/usePagination"
-const BASE_URL = import.meta.env.VITE_BASE_API
+import { getApiPrefix } from "@/utils/siteConfig"
+const BASE_URL = import.meta.env.MODE != "production" ? import.meta.env.VITE_BASE_API : getApiPrefix()
 defineOptions({
   // 命名当前组件
   name: "Translate"

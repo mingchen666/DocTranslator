@@ -261,7 +261,8 @@ import RetryIcon from '@/components/icons/RetryIcon.vue'
 import DeleteIcon from '../../components/icons/DeleteIcon.vue'
 import DownloadIcon from '../../components/icons/DownloadIcon.vue'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-const API_URL = import.meta.env.VITE_API_URL
+import { getApiPrefix } from '@/utils/siteConfig'
+const API_URL = getApiPrefix()
 import {
   checkPdf,
   transalteFile,
