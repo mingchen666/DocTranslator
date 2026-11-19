@@ -163,8 +163,12 @@ def set_auto_increment(app):
             raise NotImplementedError(f"Unsupported database dialect: {dialect}")
 
 # 初始化设置表
-def insert_initial_settings(app):
-    """初始化系统配置表数据"""
+def insert_initial_settings(app, fresh_install=False):
+    """初始化系统配置表数据。
+
+    ``fresh_install`` 为 True 时（空数据库首次初始化）额外写入站点域名配置：
+    默认 auto，即跟随用户访问地址；升级站点不写，保持原有部署配置。
+    """
     INITIAL_SETTINGS = [
         {"id": 1, "alias": "notice_setting", "value": '["1"]', "serialized": 1,
          "created_at": "2024-06-25 01:39:39", "group": None},
@@ -198,6 +202,14 @@ def insert_initial_settings(app):
          "created_at": "2025-02-18 01:57:39", "updated_at": "2025-03-04 00:57:20.624926",
          "group": "site_setting"}
     ]
+
+    if fresh_install:
+        INITIAL_SETTINGS.extend([
+            {"id": 11, "alias": "domain_mode", "value": "auto", "serialized": 0,
+             "created_at": "2026-11-17 00:00:00", "group": "site_setting"},
+            {"id": 12, "alias": "domain", "value": "", "serialized": 0,
+             "created_at": "2026-11-17 00:00:00", "group": "site_setting"},
+        ])
 
     with app.app_context():
         try:

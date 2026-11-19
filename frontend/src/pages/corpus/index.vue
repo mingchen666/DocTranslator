@@ -184,8 +184,9 @@ import {
   prompt_del
 } from '@/api/corpus'
 import { useUserStore } from '@/store/user'
+import { getApiPrefix } from '@/utils/siteConfig'
 const userStore = useUserStore()
-const uploadUrl = ref(import.meta.env.VITE_API_URL + '/api/comparison/import')
+const uploadUrl = ref(getApiPrefix() + '/api/comparison/import')
 const pageLoad = ref(false)
 const termsData = ref([])
 const promptData = ref([])
@@ -392,7 +393,7 @@ async function export_terms(item) {
   try {
     // 发起 fetch 请求
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/api/comparison/export/${item.id}`,
+      `${getApiPrefix()}/api/comparison/export/${item.id}`,
       {
         headers: {
           token: `${userStore.token}`
@@ -427,7 +428,7 @@ async function export_terms(item) {
 // 导出所有术语表
 async function export_terms_all() {
   try {
-    const response = await fetch(import.meta.env.VITE_API_URL + '/api/comparison/export/all', {
+    const response = await fetch(getApiPrefix() + '/api/comparison/export/all', {
       headers: {
         token: `${userStore.token}`
       }
@@ -458,7 +459,7 @@ async function export_terms_all() {
 //术语表模板下载
 function command_terms(type) {
   if (type == 'down') {
-    window.open(import.meta.env.VITE_API_URL + '/api/comparison/template')
+    window.open(getApiPrefix() + '/api/comparison/template')
   }
 }
 

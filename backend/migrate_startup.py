@@ -38,6 +38,9 @@ def run_migrations(app=None, seed=True):
         inspector = inspect(engine)
         table_names = set(inspector.get_table_names())
         has_version_table = 'alembic_version' in table_names
+        # 升级站点与全新站点要区分：全新站点写入 domain_mode=auto（跟随访问地址），
+        # 升级站点不写这两行，前端继续沿用原有部署配置。
+        fresh_install = not (table_names - {'alembic_version'})
 
         with engine.connect() as connection:
             versions = []
@@ -78,7 +81,7 @@ def run_migrations(app=None, seed=True):
                 insert_initial_settings,
             )
             insert_initial_data(app)
-            insert_initial_settings(app)
+            insert_initial_settings(app, fresh_install=fresh_install)
             insert_admin_from_env(app)
 
     logger.info('数据库迁移完成')

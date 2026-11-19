@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import Filing from '@/components/Filing.vue'
+import Filing from '@/components/filing.vue'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { User, Lock, Setting, Connection } from '@element-plus/icons-vue'
